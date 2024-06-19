@@ -1,30 +1,76 @@
-import '../widgets/sliver_layout.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'workout.dart';
+import 'package:workout_tracker/widgets/sliver_layout.dart';
 
-// Home Screen will be the start workout screen
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  @override
   Widget build(BuildContext context) {
     return CustomLayout(
-      title: 'Start Workout',
-      body: Padding(
-        padding: const EdgeInsets.all(0),
-        child: ElevatedButton(
-          child: const Text('Inside new workout page'),
-          onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => const CurrentWorkoutScreen()));
-          },
-        ),
-      ),
-    );
+        title: 'Start Workout',
+        body: CupertinoPageScaffold(
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Section for starting a new workout
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick Start',
+                        style: CupertinoTheme.of(context)
+                            .textTheme
+                            .navLargeTitleTextStyle,
+                      ),
+                      const SizedBox(height: 8.0),
+                      SizedBox(
+                        width: double
+                            .infinity, // Makes the button take full width of the parent
+                        child: CupertinoButton.filled(
+                          child: const Text('Start New Workout'),
+                          onPressed: () {
+                            // Navigate to the current workout screen or start a new workout
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                // Section for choosing or creating a template
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Templates',
+                        style: CupertinoTheme.of(context)
+                            .textTheme
+                            .navLargeTitleTextStyle,
+                      ),
+                      const SizedBox(height: 8.0),
+                      // Add your template buttons or grid here
+                      const Text('No templates available.'),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CupertinoButton(
+                          child: const Text('Create Template'),
+                          onPressed: () {
+                            // Navigate to template creation screen
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ));
   }
 }
