@@ -24,14 +24,18 @@ class HomeScreen extends StatelessWidget {
                         'Quick Start',
                         style: CupertinoTheme.of(context)
                             .textTheme
-                            .navLargeTitleTextStyle,
+                            .navTitleTextStyle,
                       ),
-                      const SizedBox(height: 8.0),
+                      const SizedBox(height: 6.0),
                       SizedBox(
+                        height: 35.0,
                         width: double
                             .infinity, // Makes the button take full width of the parent
                         child: CupertinoButton.filled(
-                          child: const Text('Start New Workout'),
+                          padding: const EdgeInsets.all(0),
+                          child: const Text(
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                              'Start New Workout'),
                           onPressed: () {
                             // Navigate to the current workout screen or start a new workout
                           },
@@ -51,7 +55,7 @@ class HomeScreen extends StatelessWidget {
                         'Templates',
                         style: CupertinoTheme.of(context)
                             .textTheme
-                            .navLargeTitleTextStyle,
+                            .navTitleTextStyle,
                       ),
                       const SizedBox(height: 8.0),
                       // Add your template buttons or grid here

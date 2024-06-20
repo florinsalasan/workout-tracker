@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'screens/screen_controller.dart';
-import 'screens/home.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -19,7 +18,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: const HomeScreen(),
+        home: const MainScreen(),
       );
     }
   }
