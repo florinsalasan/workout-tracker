@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-class WorkoutState with ChangeNotifier {
+class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   bool _isOverlayExpanded = false;
 
@@ -9,6 +9,7 @@ class WorkoutState with ChangeNotifier {
 
   void startWorkout() {
     _isWorkoutActive = true;
+    _isOverlayExpanded = true;
     notifyListeners();
   }
 
@@ -23,6 +24,8 @@ class WorkoutState with ChangeNotifier {
     notifyListeners();
   }
 
+  // Shouldn't really be using these next two helpers but just in case,
+  // Or can use them to ensure functionality for a close button or open button
   void minimizeOverlay() {
     _isOverlayExpanded = false;
     notifyListeners();

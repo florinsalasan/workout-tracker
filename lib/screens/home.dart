@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:workout_tracker/screens/workout.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -38,6 +40,10 @@ class HomeScreen extends StatelessWidget {
                               'Start New Workout'),
                           onPressed: () {
                             // Navigate to the current workout screen or start a new workout
+                            final workoutState = Provider.of<WorkoutState>(
+                                context,
+                                listen: false);
+                            workoutState.startWorkout();
                           },
                         ),
                       ),
