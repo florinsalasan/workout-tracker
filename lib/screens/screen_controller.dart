@@ -74,10 +74,14 @@ class _MainScreenState extends State<MainScreen> {
                       left: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: workoutState.toggleOverlay,
+                        onVerticalDragEnd: (details) {
+                          if (details.primaryVelocity! > 5) {
+                            context.read<WorkoutState>().minimizeOverlay();
+                          }
+                        },
                         child: AnimatedContainer(
                           duration: Duration(milliseconds: 300),
-                          height: workoutState.isOverlayExpanded ? 300.0 : 60.0,
+                          height: workoutState.isOverlayExpanded ? 800.0 : 60.0,
                           color: Colors.blue,
                           child: Center(
                             child: Text(
