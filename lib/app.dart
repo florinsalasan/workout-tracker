@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'screens/screen_controller.dart';
+import 'screen_controller.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
