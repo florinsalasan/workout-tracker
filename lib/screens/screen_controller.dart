@@ -70,30 +70,33 @@ class _MainScreenState extends State<MainScreen> {
               Consumer<WorkoutState>(
                 builder: (context, workoutState, child) {
                   if (workoutState.isWorkoutActive) {
-                    return Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onVerticalDragEnd: (details) {
-                          if (details.primaryVelocity! > 5) {
-                            context.read<WorkoutState>().minimizeOverlay();
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: Duration(milliseconds: 300),
-                          height: workoutState.isOverlayExpanded ? 800.0 : 60.0,
-                          color: Colors.blue,
-                          child: Center(
-                            child: Text(
-                              workoutState.isOverlayExpanded
-                                  ? 'Minimize Workout'
-                                  : 'Current Workout',
-                            ),
+                    return Stack(children: [
+                      AnimatedContainer(
+                        duration: Duration(milliseconds: 300),
+                        height: workoutState.isOverlayExpanded ? 800.0 : 60.0,
+                        color: Colors.blue,
+                        child: Stack(children: [
+                          Text(
+                            workoutState.isOverlayExpanded
+                                ? 'Minimize Workout'
+                                : 'Current Workout',
                           ),
-                        ),
+                        ]),
                       ),
-                    );
+                      Positioned(
+                          top: 100.0,
+                          right: 0.0,
+                          left: 0.0,
+                          child: DraggableOverlayHandle(
+                            onMinimize: () =>
+                                context.read<WorkoutState>().minimizeOverlay(),
+                            onUpdateHeight: (newHeight) => context
+                                .read<WorkoutState>()
+                                .updateOverlayHeight(newHeight),
+                            initialHeight:
+                                context.read<WorkoutState>().initialHeight,
+                          ))
+                    ]);
                   }
                   return SizedBox.shrink();
                 },

@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -7,8 +8,9 @@ class WorkoutState extends ChangeNotifier {
   bool get isWorkoutActive => _isWorkoutActive;
   bool get isOverlayExpanded => _isOverlayExpanded;
 
-  final double overlayHeight = 800.0; // Assuming your overlay height
+  double overlayHeight = 800.0; // Assuming your overlay height
   final double dragThreshold = 800.0 * 0.15; // 15% of overlay height
+  double initialHeight = 500.0;
 
   void startWorkout() {
     _isWorkoutActive = true;
@@ -36,6 +38,12 @@ class WorkoutState extends ChangeNotifier {
 
   void expandOverlay() {
     _isOverlayExpanded = true;
+    notifyListeners();
+  }
+
+  void updateOverlayHeight(double newHeight) {
+    _isOverlayExpanded = newHeight > initialHeight;
+    overlayHeight = newHeight;
     notifyListeners();
   }
 }
