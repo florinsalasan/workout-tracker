@@ -6,7 +6,8 @@ import 'history.dart';
 import 'analytics.dart';
 import 'exercises.dart';
 import 'scans.dart';
-import 'workout.dart'; // Import the WorkoutState class
+import 'workout.dart';
+import '../widgets/overlay_handle.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

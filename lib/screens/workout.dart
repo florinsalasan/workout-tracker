@@ -7,6 +7,9 @@ class WorkoutState extends ChangeNotifier {
   bool get isWorkoutActive => _isWorkoutActive;
   bool get isOverlayExpanded => _isOverlayExpanded;
 
+  final double overlayHeight = 800.0; // Assuming your overlay height
+  final double dragThreshold = 800.0 * 0.15; // 15% of overlay height
+
   void startWorkout() {
     _isWorkoutActive = true;
     _isOverlayExpanded = true;
