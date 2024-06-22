@@ -1,12 +1,13 @@
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
 
 class WorkoutOverlay extends StatefulWidget {
+  const WorkoutOverlay({super.key});
+
   @override
-  _WorkoutOverlayState createState() => _WorkoutOverlayState();
+  WorkoutOverlayState createState() => WorkoutOverlayState();
 }
 
-class _WorkoutOverlayState extends State<WorkoutOverlay> {
+class WorkoutOverlayState extends State<WorkoutOverlay> {
   double _height = 800; // Starting height
   static const double _minHeight = 100; // Minimized height
   static const double _maxHeight = 800; // Maximized height
@@ -39,12 +40,12 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
         child: Container(
           decoration: BoxDecoration(
             color: CupertinoColors.systemGreen.withOpacity(0.9),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
               _buildHandle(),
-              Expanded(
+              const Expanded(
                 child: Center(
                   child: Text(
                     'Active Workout',
@@ -64,7 +65,7 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
     return Container(
       height: 5,
       width: 40,
-      margin: EdgeInsets.symmetric(vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         color: CupertinoColors.white,
         borderRadius: BorderRadius.circular(2.5),

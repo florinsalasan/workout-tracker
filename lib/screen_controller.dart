@@ -16,7 +16,7 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
-        items: [
+        items: const [
           BottomNavigationBarItem(
               icon: Icon(CupertinoIcons.plus_circle), label: 'New Workout'),
           BottomNavigationBarItem(
@@ -39,9 +39,9 @@ class MainScreen extends StatelessWidget {
                   Consumer<WorkoutState>(
                     builder: (context, workoutState, child) {
                       if (workoutState.isWorkoutActive) {
-                        return WorkoutOverlay();
+                        return const WorkoutOverlay();
                       }
-                      return SizedBox.shrink();
+                      return const SizedBox.shrink();
                     },
                   ),
                 ],
@@ -56,15 +56,15 @@ class MainScreen extends StatelessWidget {
   Widget _buildScreen(int index) {
     switch (index) {
       case 0:
-        return HomeScreen();
+        return const HomeScreen();
       case 1:
-        return HistoryScreen();
+        return const HistoryScreen();
       case 2:
-        return AnalyticsScreen();
+        return const AnalyticsScreen();
       case 3:
-        return ExercisesScreen();
+        return const ExercisesScreen();
       case 4:
-        return ScanScreen();
+        return const ScanScreen();
       default:
         throw Exception("invalid tab");
     }
