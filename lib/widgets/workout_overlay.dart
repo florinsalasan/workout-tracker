@@ -29,12 +29,27 @@ class WorkoutOverlay extends StatelessWidget {
                 children: [
                   _buildHandle(),
                   Expanded(
-                    child: Center(
-                      child: Text(
-                        'Active Workout',
-                        style: TextStyle(
-                            color: CupertinoColors.white, fontSize: 20),
-                      ),
+                    child: ListView.builder(
+                      padding: EdgeInsets.all(10.0),
+                      itemCount:
+                          20, // Sample item count, you can replace it with your actual data
+                      itemBuilder: (context, index) {
+                        return Container(
+                          margin: EdgeInsets.symmetric(vertical: 5.0),
+                          padding: EdgeInsets.all(15.0),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.white,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: Text(
+                            'Workout Set ${index + 1}',
+                            style: TextStyle(
+                              fontSize: 16.0,
+                              color: CupertinoColors.black,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
