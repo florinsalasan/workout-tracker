@@ -1,27 +1,69 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
-import 'workout_state.dart';
+
+class WorkoutState extends ChangeNotifier {
+  bool _isWorkoutActive = false;
+  double _overlayHeight = 110; // Starting at minimized height
+
+  bool get isWorkoutActive => _isWorkoutActive;
+  double get overlayHeight => _overlayHeight;
+
+  static const double minHeight = 110;
+  static const double maxHeight = 800;
+
+  void startWorkout() {
+    _isWorkoutActive = true;
+    _overlayHeight = maxHeight;
+    notifyListeners();
+  }
+
+  void endWorkout() {
+    _isWorkoutActive = false;
+    _overlayHeight = minHeight;
+    notifyListeners();
+  }
+
+  void updateOverlayHeight(double height) {
+    _overlayHeight = height.clamp(minHeight, maxHeight);
+    notifyListeners();
+  }
+
+  void snapOverlay() {
+    if (_overlayHeight > (minHeight + maxHeight) / 2) {
+      _overlayHeight = maxHeight;
+    } else {
+      _overlayHeight = minHeight;
+    }
+    notifyListeners();
+  }
+}
 
 class WorkoutOverlay extends StatelessWidget {
-  static const double _minHeight = 100; // Minimized height
-  static const double _maxHeight = 800;
+  const WorkoutOverlay({super.key});
 
-  const WorkoutOverlay({super.key}); // Maximized height
+  void _handleDrag(BuildContext context, DragUpdateDetails details) {
+    final workoutState = context.read<WorkoutState>();
+    final newHeight = workoutState.overlayHeight - details.delta.dy;
+    workoutState.updateOverlayHeight(newHeight);
+  }
+
+  void _handleDragEnd(BuildContext context, DragEndDetails details) {
+    final workoutState = context.read<WorkoutState>();
+    workoutState.snapOverlay();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
-        return AnimatedPositioned(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+        return Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          height: workoutState.isOverlayExpanded ? _maxHeight : _minHeight,
+          height: workoutState.overlayHeight,
           child: GestureDetector(
-            onVerticalDragUpdate: (details) => _handleDrag(details, context),
-            onVerticalDragEnd: (details) => _handleDragEnd(details, context),
+            onVerticalDragUpdate: (details) => _handleDrag(context, details),
+            onVerticalDragEnd: (details) => _handleDragEnd(context, details),
             child: Container(
               decoration: BoxDecoration(
                 color: CupertinoColors.systemGreen.withOpacity(0.9),
@@ -32,27 +74,13 @@ class WorkoutOverlay extends StatelessWidget {
                 children: [
                   _buildHandle(),
                   Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(10.0),
-                      itemCount:
-                          20, // Sample item count, you can replace it with your actual data
-                      itemBuilder: (context, index) {
-                        return Container(
-                          margin: const EdgeInsets.symmetric(vertical: 5.0),
-                          padding: const EdgeInsets.all(15.0),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.white,
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          child: Text(
-                            'Workout Set ${index + 1}',
-                            style: const TextStyle(
-                              fontSize: 16.0,
-                              color: CupertinoColors.black,
-                            ),
-                          ),
-                        );
-                      },
+                    child: Center(
+                      child: Text(
+                        'Active Workout\nHeight: ${workoutState.overlayHeight.toStringAsFixed(1)}',
+                        style: const TextStyle(
+                            color: CupertinoColors.white, fontSize: 20),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ],
@@ -74,22 +102,5 @@ class WorkoutOverlay extends StatelessWidget {
         borderRadius: BorderRadius.circular(2.5),
       ),
     );
-  }
-
-  void _handleDrag(DragUpdateDetails details, BuildContext context) {
-    final workoutState = context.read<WorkoutState>();
-    if (workoutState.isOverlayExpanded && details.delta.dy > 0 ||
-        !workoutState.isOverlayExpanded && details.delta.dy < 0) {
-      workoutState.toggleOverlay();
-    }
-  }
-
-  void _handleDragEnd(DragEndDetails details, BuildContext context) {
-    final workoutState = context.read<WorkoutState>();
-    if (details.velocity.pixelsPerSecond.dy > 0) {
-      workoutState.minimizeOverlay();
-    } else if (details.velocity.pixelsPerSecond.dy < 0) {
-      workoutState.expandOverlay();
-    }
   }
 }

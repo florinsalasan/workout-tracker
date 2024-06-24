@@ -1,13 +1,11 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:workout_tracker/widgets/workout_state.dart';
+import 'package:workout_tracker/widgets/workout_overlay.dart';
 import 'screens/home.dart';
 import 'screens/history.dart';
 import 'screens/analytics.dart';
 import 'screens/exercises.dart';
 import 'screens/scans.dart';
-import 'widgets/workout_overlay.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -17,40 +15,21 @@ class MainScreen extends StatelessWidget {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         return CupertinoTabScaffold(
-          tabBar: workoutState.isWorkoutActive && workoutState.isOverlayExpanded
-              ? CupertinoTabBar(items: const [
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.plus_circle),
-                      label: 'New Workout'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.clock), label: 'History'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.graph_square),
-                      label: 'Analytics'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.list_bullet),
-                      label: 'Exercises'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
-                ], backgroundColor: Colors.transparent, height: 0)
-              : CupertinoTabBar(
-                  items: const [
-                    BottomNavigationBarItem(
-                        icon: Icon(CupertinoIcons.plus_circle),
-                        label: 'New Workout'),
-                    BottomNavigationBarItem(
-                        icon: Icon(CupertinoIcons.clock), label: 'History'),
-                    BottomNavigationBarItem(
-                        icon: Icon(CupertinoIcons.graph_square),
-                        label: 'Analytics'),
-                    BottomNavigationBarItem(
-                        icon: Icon(CupertinoIcons.list_bullet),
-                        label: 'Exercises'),
-                    BottomNavigationBarItem(
-                        icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
-                  ],
-                  height: 50,
-                ),
+          tabBar: CupertinoTabBar(
+            items: const [
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.plus_circle), label: 'New Workout'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.clock), label: 'History'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.graph_square), label: 'Analytics'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.list_bullet), label: 'Exercises'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
+            ],
+            height: 50,
+          ),
           tabBuilder: (context, index) {
             return CupertinoTabView(
               builder: (context) {
