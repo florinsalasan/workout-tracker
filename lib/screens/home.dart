@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:workout_tracker/screens/workout.dart';
+import 'package:workout_tracker/widgets/workout_state.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
 class HomeScreen extends StatelessWidget {

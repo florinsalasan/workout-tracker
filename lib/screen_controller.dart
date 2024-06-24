@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:workout_tracker/screens/workout.dart';
+import 'package:workout_tracker/widgets/workout_state.dart';
 import 'screens/home.dart';
 import 'screens/history.dart';
 import 'screens/analytics.dart';
@@ -18,7 +18,7 @@ class MainScreen extends StatelessWidget {
       builder: (context, workoutState, child) {
         return CupertinoTabScaffold(
           tabBar: workoutState.isWorkoutActive && workoutState.isOverlayExpanded
-              ? CupertinoTabBar(items: [
+              ? CupertinoTabBar(items: const [
                   BottomNavigationBarItem(
                       icon: Icon(CupertinoIcons.plus_circle),
                       label: 'New Workout'),
@@ -34,7 +34,7 @@ class MainScreen extends StatelessWidget {
                       icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
                 ], backgroundColor: Colors.transparent, height: 0)
               : CupertinoTabBar(
-                  items: [
+                  items: const [
                     BottomNavigationBarItem(
                         icon: Icon(CupertinoIcons.plus_circle),
                         label: 'New Workout'),
@@ -58,7 +58,7 @@ class MainScreen extends StatelessWidget {
                   child: Stack(
                     children: [
                       _buildScreen(index),
-                      if (workoutState.isWorkoutActive) WorkoutOverlay(),
+                      if (workoutState.isWorkoutActive) const WorkoutOverlay(),
                     ],
                   ),
                 );
@@ -73,17 +73,17 @@ class MainScreen extends StatelessWidget {
   Widget _buildScreen(int index) {
     switch (index) {
       case 0:
-        return HomeScreen();
+        return const HomeScreen();
       case 1:
-        return HistoryScreen();
+        return const HistoryScreen();
       case 2:
-        return AnalyticsScreen();
+        return const AnalyticsScreen();
       case 3:
-        return ExercisesScreen();
+        return const ExercisesScreen();
       case 4:
-        return ScanScreen();
+        return const ScanScreen();
       default:
-        return SizedBox.shrink();
+        throw Exception("Invalid tab how did you do this :O");
     }
   }
 }
