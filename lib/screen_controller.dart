@@ -10,12 +10,20 @@ import 'screens/scans.dart';
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
+  static const double _tabBarHeight = 50;
+
   @override
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
+        final visibilityFactor = 1.0 -
+            ((workoutState.overlayHeight - WorkoutState.minHeight) /
+                    (WorkoutState.maxHeight - WorkoutState.minHeight))
+                .clamp(0.0, 1.0);
         return CupertinoTabScaffold(
           tabBar: CupertinoTabBar(
+            height: (_tabBarHeight * visibilityFactor).clamp(0.0, 50.0),
+            backgroundColor: Color.fromRGBO(255, 255, 255, visibilityFactor),
             items: const [
               BottomNavigationBarItem(
                   icon: Icon(CupertinoIcons.plus_circle), label: 'New Workout'),
@@ -28,7 +36,6 @@ class MainScreen extends StatelessWidget {
               BottomNavigationBarItem(
                   icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
             ],
-            height: 50,
           ),
           tabBuilder: (context, index) {
             return CupertinoTabView(
@@ -47,6 +54,28 @@ class MainScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _buildResponsiveTabBar(double visibilityFactor) {
+    return SizedBox(
+        height: _tabBarHeight * visibilityFactor,
+        child: Opacity(
+          opacity: visibilityFactor,
+          child: CupertinoTabBar(
+            items: const [
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.plus_circle), label: 'New Workout'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.clock), label: 'History'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.graph_square), label: 'Analytics'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.list_bullet), label: 'Exercises'),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
+            ],
+          ),
+        ));
   }
 
   Widget _buildScreen(int index) {

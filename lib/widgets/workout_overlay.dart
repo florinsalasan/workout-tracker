@@ -8,7 +8,7 @@ class WorkoutState extends ChangeNotifier {
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;
 
-  static const double minHeight = 110;
+  static const double minHeight = 25;
   static const double maxHeight = 800;
 
   void startWorkout() {
@@ -43,7 +43,8 @@ class WorkoutOverlay extends StatelessWidget {
 
   void _handleDrag(BuildContext context, DragUpdateDetails details) {
     final workoutState = context.read<WorkoutState>();
-    final newHeight = workoutState.overlayHeight - details.delta.dy;
+    final newHeight = (workoutState.overlayHeight - details.delta.dy)
+        .clamp(WorkoutState.minHeight, WorkoutState.maxHeight);
     workoutState.updateOverlayHeight(newHeight);
   }
 
