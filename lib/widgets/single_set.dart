@@ -13,10 +13,10 @@ class SetTrackingWidget extends StatefulWidget {
   });
 
   @override
-  _SetTrackingWidgetState createState() => _SetTrackingWidgetState();
+  SetTrackingWidgetState createState() => SetTrackingWidgetState();
 }
 
-class _SetTrackingWidgetState extends State<SetTrackingWidget> {
+class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _weightController;
   late TextEditingController _repsController;
   bool _isCompleted = false;

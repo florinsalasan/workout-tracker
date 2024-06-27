@@ -7,10 +7,10 @@ class ExerciseTrackingWidget extends StatefulWidget {
   const ExerciseTrackingWidget({super.key, required this.exerciseName});
 
   @override
-  _ExerciseTrackingWidgetState createState() => _ExerciseTrackingWidgetState();
+  ExerciseTrackingWidgetState createState() => ExerciseTrackingWidgetState();
 }
 
-class _ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
+class ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
   List<SetTrackingWidget> sets = [];
 
   @override
@@ -83,12 +83,24 @@ class _ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
                 _removeSet(idx);
               },
               background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20.0),
-                color: CupertinoColors.destructiveRed,
-                child: const Icon(CupertinoIcons.delete,
-                    color: CupertinoColors.white),
-              ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20.0),
+                  color: CupertinoColors.destructiveRed,
+                  child: RichText(
+                      text: const TextSpan(children: [
+                    WidgetSpan(
+                      child: Icon(CupertinoIcons.delete,
+                          color: CupertinoColors.white),
+                    ),
+                    WidgetSpan(
+                      child: Text("   Delete",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: CupertinoColors.white)),
+                    )
+                  ]))),
               child: set,
             );
           }),
