@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:workout_tracker/widgets/exercise_overlay.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -86,18 +87,8 @@ class WorkoutOverlay extends StatelessWidget {
                       CupertinoSliverNavigationBar(
                         largeTitle: Text('Workout'),
                       ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 8,
-                                ),
-                              ],
-                            )),
-                      )
+                      ExerciseTrackingWidget(
+                          exerciseName: "Incline Bench Press (Dumbbell)")
                     ],
                   )),
                 ],

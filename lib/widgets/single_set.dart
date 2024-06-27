@@ -1,91 +1,102 @@
 import 'package:flutter/cupertino.dart';
 
-class WorkoutSetRow extends StatefulWidget {
+class SetTrackingWidget extends StatefulWidget {
   final int setNumber;
-  final bool isWarmup;
-  final double previousWeight;
-  final int previousReps;
-  final Function(bool) onSetComplete;
+  final String? previousWeight;
+  final String? previousReps;
 
-  const WorkoutSetRow({
-    super.key,
+  const SetTrackingWidget({
+    Key? key,
     required this.setNumber,
-    required this.isWarmup,
-    required this.previousWeight,
-    required this.previousReps,
-    required this.onSetComplete,
-  });
+    this.previousWeight,
+    this.previousReps,
+  }) : super(key: key);
 
   @override
-  WorkoutSetRowState createState() => WorkoutSetRowState();
+  _SetTrackingWidgetState createState() => _SetTrackingWidgetState();
 }
 
-class WorkoutSetRowState extends State<WorkoutSetRow> {
-  double currentWeight = 0;
-  int currentReps = 0;
-  bool isComplete = false;
+class _SetTrackingWidgetState extends State<SetTrackingWidget> {
+  late TextEditingController _weightController;
+  late TextEditingController _repsController;
+  bool _isCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _weightController = TextEditingController();
+    _repsController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _repsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Set Number or Warmup Marker
+          // Set Number
           SizedBox(
-            width: MediaQuery.of(context).size.width * 0.15,
+            width: 8,
             child: Text(
-              widget.isWarmup ? 'Warmup' : 'Set ${widget.setNumber}',
+              '${widget.setNumber}',
               style: CupertinoTheme.of(context).textTheme.textStyle,
             ),
           ),
-          // Previous Exercise Info
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.25,
-            child: Text(
-              'Prev: ${widget.previousWeight} lbs x ${widget.previousReps}',
-              style: CupertinoTheme.of(context).textTheme.textStyle,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          // Current Weight Input
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.15,
+          // Previous Lifts
+          if (widget.previousWeight != null && widget.previousReps != null)
+            Expanded(
+              flex: 2,
+              child: Text(
+                '${widget.previousWeight} x ${widget.previousReps}',
+                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                      color: CupertinoColors.systemGrey,
+                    ),
+              ),
+            )
+          else
+            Spacer(flex: 2),
+          // Weight Input
+          Expanded(
+            flex: 1,
             child: CupertinoTextField(
+              controller: _weightController,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
               placeholder: 'Weight',
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                setState(() {
-                  currentWeight = double.tryParse(value) ?? 0;
-                });
-              },
             ),
           ),
-          // Current Reps Input
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.15,
+          SizedBox(width: 8),
+          // Reps Input
+          Expanded(
+            flex: 1,
             child: CupertinoTextField(
-              placeholder: 'Reps',
+              controller: _repsController,
               keyboardType: TextInputType.number,
-              onChanged: (value) {
-                setState(() {
-                  currentReps = int.tryParse(value) ?? 0;
-                });
-              },
+              placeholder: 'Reps',
             ),
           ),
-          // Checkbox for Set Completion
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.10,
-            child: CupertinoSwitch(
-              value: isComplete,
-              onChanged: (value) {
-                setState(() {
-                  isComplete = value;
-                  widget.onSetComplete(isComplete);
-                });
-              },
+          SizedBox(width: 8),
+          // Completed Checkbox
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              setState(() {
+                _isCompleted = !_isCompleted;
+              });
+            },
+            child: Icon(
+              _isCompleted
+                  ? CupertinoIcons.check_mark_circled_solid
+                  : CupertinoIcons.circle,
+              color: _isCompleted
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.systemGrey,
             ),
           ),
         ],
