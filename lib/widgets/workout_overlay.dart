@@ -67,23 +67,39 @@ class WorkoutOverlay extends StatelessWidget {
             onVerticalDragEnd: (details) => _handleDragEnd(context, details),
             child: Container(
               decoration: BoxDecoration(
-                color: CupertinoColors.systemGreen.withOpacity(0.9),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
+                  color: CupertinoColors.systemGreen.withOpacity(0.9),
+                  // color: CupertinoColors.systemBackground,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: CupertinoColors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -5))
+                  ]),
               child: Column(
                 children: [
                   _buildHandle(),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Active Workout\nHeight: ${workoutState.overlayHeight.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                            color: CupertinoColors.white, fontSize: 20),
-                        textAlign: TextAlign.center,
+                  const Expanded(
+                      child: CustomScrollView(
+                    slivers: [
+                      CupertinoSliverNavigationBar(
+                        largeTitle: Text('Workout'),
                       ),
-                    ),
-                  ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 8,
+                                ),
+                              ],
+                            )),
+                      )
+                    ],
+                  )),
                 ],
               ),
             ),
@@ -94,14 +110,21 @@ class WorkoutOverlay extends StatelessWidget {
   }
 
   Widget _buildHandle() {
-    return Container(
-      height: 5,
-      width: 40,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: CupertinoColors.white,
-        borderRadius: BorderRadius.circular(2.5),
-      ),
+    return Column(
+      children: [
+        Container(
+          height: 5,
+          width: 40,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+              color: CupertinoColors.white,
+              borderRadius: BorderRadius.circular(100)),
+        ),
+        const Text(
+            style: TextStyle(
+                color: CupertinoColors.white, fontWeight: FontWeight.bold),
+            "Active Workout"),
+      ],
     );
   }
 }

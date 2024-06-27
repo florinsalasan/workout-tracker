@@ -56,28 +56,6 @@ class MainScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildResponsiveTabBar(double visibilityFactor) {
-    return SizedBox(
-        height: _tabBarHeight * visibilityFactor,
-        child: Opacity(
-          opacity: visibilityFactor,
-          child: CupertinoTabBar(
-            items: const [
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.plus_circle), label: 'New Workout'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.clock), label: 'History'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.graph_square), label: 'Analytics'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.list_bullet), label: 'Exercises'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
-            ],
-          ),
-        ));
-  }
-
   Widget _buildScreen(int index) {
     switch (index) {
       case 0:
