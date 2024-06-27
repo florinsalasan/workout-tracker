@@ -6,11 +6,11 @@ class SetTrackingWidget extends StatefulWidget {
   final String? previousReps;
 
   const SetTrackingWidget({
-    Key? key,
+    super.key,
     required this.setNumber,
     this.previousWeight,
     this.previousReps,
-  }) : super(key: key);
+  });
 
   @override
   _SetTrackingWidgetState createState() => _SetTrackingWidgetState();
@@ -38,7 +38,7 @@ class _SetTrackingWidgetState extends State<SetTrackingWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
       child: Row(
         children: [
           // Set Number
@@ -61,17 +61,18 @@ class _SetTrackingWidgetState extends State<SetTrackingWidget> {
               ),
             )
           else
-            Spacer(flex: 2),
+            const Spacer(flex: 2),
           // Weight Input
           Expanded(
             flex: 1,
             child: CupertinoTextField(
               controller: _weightController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               placeholder: 'Weight',
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           // Reps Input
           Expanded(
             flex: 1,
@@ -81,7 +82,7 @@ class _SetTrackingWidgetState extends State<SetTrackingWidget> {
               placeholder: 'Reps',
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           // Completed Checkbox
           CupertinoButton(
             padding: EdgeInsets.zero,

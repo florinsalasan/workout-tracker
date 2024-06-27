@@ -4,8 +4,7 @@ import 'single_set.dart';
 class ExerciseTrackingWidget extends StatefulWidget {
   final String exerciseName;
 
-  const ExerciseTrackingWidget({Key? key, required this.exerciseName})
-      : super(key: key);
+  const ExerciseTrackingWidget({super.key, required this.exerciseName});
 
   @override
   _ExerciseTrackingWidgetState createState() => _ExerciseTrackingWidgetState();
@@ -24,9 +23,24 @@ class _ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
   void _addSet() {
     setState(() {
       sets.add(SetTrackingWidget(
+        key: UniqueKey(),
         setNumber: sets.length + 1,
         // can pass previous weight and reps here if available
       ));
+    });
+  }
+
+  void _removeSet(int index) {
+    setState(() {
+      sets.removeAt(index);
+      for (int i = index; i < sets.length; i++) {
+        sets[i] = SetTrackingWidget(
+          key: UniqueKey(),
+          setNumber: i + 1,
+          previousReps: sets[i].previousReps,
+          previousWeight: sets[i].previousWeight,
+        );
+      }
     });
   }
 
@@ -44,27 +58,45 @@ class _ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
               style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
             ),
           ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
-                SizedBox(width: 30, child: Text('Set')),
+                SizedBox(width: 50, child: Text('Set')),
+                SizedBox(width: 10),
                 Expanded(flex: 2, child: Text('Previous')),
+                SizedBox(width: 35),
                 Expanded(flex: 2, child: Text('Weight')),
-                SizedBox(width: 8),
+                SizedBox(width: 10),
                 Expanded(flex: 2, child: Text('Reps')),
-                SizedBox(width: 8),
                 SizedBox(width: 44, child: Text('Done')),
               ],
             ),
           ),
-          ...sets,
+          ...sets.asMap().entries.map((entry) {
+            int idx = entry.key;
+            SetTrackingWidget set = entry.value;
+            return Dismissible(
+              key: set.key!,
+              direction: DismissDirection.endToStart,
+              onDismissed: (direction) {
+                _removeSet(idx);
+              },
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20.0),
+                color: CupertinoColors.destructiveRed,
+                child: const Icon(CupertinoIcons.delete,
+                    color: CupertinoColors.white),
+              ),
+              child: set,
+            );
+          }),
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: CupertinoButton(
-              child: Text('Add Set'),
               onPressed: _addSet,
+              child: const Text('Add Set'),
             ),
           ),
         ],
