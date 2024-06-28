@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:path/path.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/exercise_overlay.dart';
 
@@ -133,9 +133,13 @@ class WorkoutOverlay extends StatelessWidget {
       SliverToBoxAdapter(
         child: CupertinoButton(
           onPressed: () async {
+            final db = Provider.of<Database>(context, listen: false);
             final result = await showCupertinoDialog<String>(
               context: context,
-              builder: (context) => const ExerciseSelectionDialog(),
+              builder: (dialogContext) => Provider<Database>.value(
+                value: db,
+                child: const ExerciseSelectionDialog(),
+              ),
             );
             if (result != null) {
               workoutState.addExercise(result);

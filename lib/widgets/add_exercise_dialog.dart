@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import '../screens/exercises.dart';
 
 class ExerciseSelectionDialog extends StatefulWidget {
   const ExerciseSelectionDialog({super.key});
