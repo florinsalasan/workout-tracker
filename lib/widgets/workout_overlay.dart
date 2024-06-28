@@ -96,6 +96,9 @@ class WorkoutOverlay extends StatelessWidget {
                       slivers: _buildSlivers(context, workoutState),
                     ),
                   ),
+                  SizedBox(
+                    height: 40,
+                  ),
                 ],
               ),
             ),
