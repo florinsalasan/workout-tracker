@@ -1,13 +1,17 @@
 import 'package:flutter/cupertino.dart';
+import 'package:path/path.dart';
 import 'package:provider/provider.dart';
+import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/exercise_overlay.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   double _overlayHeight = 110; // Starting at minimized height
+  List<ExerciseTrackingWidget> _exercises = [];
 
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;
+  List<ExerciseTrackingWidget> get exercises => _exercises;
 
   static const double minHeight = 25;
   static const double maxHeight = 800;
@@ -21,6 +25,7 @@ class WorkoutState extends ChangeNotifier {
   void endWorkout() {
     _isWorkoutActive = false;
     _overlayHeight = minHeight;
+    _exercises.clear();
     notifyListeners();
   }
 
@@ -35,6 +40,11 @@ class WorkoutState extends ChangeNotifier {
     } else {
       _overlayHeight = minHeight;
     }
+    notifyListeners();
+  }
+
+  void addExercise(String exerciseName) {
+    _exercises.add(ExerciseTrackingWidget(exerciseName: exerciseName));
     notifyListeners();
   }
 }
@@ -81,16 +91,11 @@ class WorkoutOverlay extends StatelessWidget {
               child: Column(
                 children: [
                   _buildHandle(),
-                  const Expanded(
-                      child: CustomScrollView(
-                    slivers: [
-                      CupertinoSliverNavigationBar(
-                        largeTitle: Text('Workout'),
-                      ),
-                      ExerciseTrackingWidget(
-                          exerciseName: "Incline Bench Press (Dumbbell)")
-                    ],
-                  )),
+                  Expanded(
+                    child: CustomScrollView(
+                      slivers: _buildSlivers(context, workoutState),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -117,5 +122,28 @@ class WorkoutOverlay extends StatelessWidget {
             "Active Workout"),
       ],
     );
+  }
+
+  List<Widget> _buildSlivers(BuildContext context, WorkoutState workoutState) {
+    return [
+      const CupertinoSliverNavigationBar(
+        largeTitle: Text('Workout'),
+      ),
+      ...workoutState.exercises,
+      SliverToBoxAdapter(
+        child: CupertinoButton(
+          onPressed: () async {
+            final result = await showCupertinoDialog<String>(
+              context: context,
+              builder: (context) => const ExerciseSelectionDialog(),
+            );
+            if (result != null) {
+              workoutState.addExercise(result);
+            }
+          },
+          child: const Text("Add Exercise"),
+        ),
+      ),
+    ];
   }
 }
