@@ -78,8 +78,8 @@ class WorkoutOverlay extends StatelessWidget {
             onVerticalDragEnd: (details) => _handleDragEnd(context, details),
             child: Container(
               decoration: BoxDecoration(
-                  color: CupertinoColors.systemGreen.withOpacity(0.9),
-                  // color: CupertinoColors.systemBackground,
+                  // color: CupertinoColors.systemGreen.withOpacity(0.9),
+                  color: CupertinoColors.systemBackground,
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(20)),
                   boxShadow: [
@@ -96,7 +96,7 @@ class WorkoutOverlay extends StatelessWidget {
                       slivers: _buildSlivers(context, workoutState),
                     ),
                   ),
-                  SizedBox(
+                  const SizedBox(
                     height: 40,
                   ),
                 ],
@@ -116,7 +116,7 @@ class WorkoutOverlay extends StatelessWidget {
           width: 40,
           margin: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-              color: CupertinoColors.white,
+              color: CupertinoColors.black,
               borderRadius: BorderRadius.circular(100)),
         ),
         const Text(
@@ -129,8 +129,13 @@ class WorkoutOverlay extends StatelessWidget {
 
   List<Widget> _buildSlivers(BuildContext context, WorkoutState workoutState) {
     return [
-      const CupertinoSliverNavigationBar(
-        largeTitle: Text('Workout'),
+      const SliverToBoxAdapter(
+        child: Center(
+          child: Text('Workout'),
+        ),
+      ),
+      const SliverToBoxAdapter(
+        child: SizedBox(height: 20),
       ),
       ...workoutState.exercises,
       SliverToBoxAdapter(

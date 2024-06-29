@@ -1,3 +1,6 @@
+import 'package:provider/provider.dart';
+import 'package:workout_tracker/providers/exercise_provider.dart';
+
 import '../widgets/sliver_layout.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/db_helpers.dart';
@@ -61,23 +64,29 @@ class ExercisesScreenState extends State<ExercisesScreen> {
   Widget build(BuildContext context) {
     return CustomLayout(
       title: 'Exercises',
-      body: ListView.builder(
-        itemCount: exercises.length,
-        itemBuilder: (context, index) {
-          final exercise = exercises[index];
-          return CupertinoListTile(
-            title: Text(exercise.name),
-            trailing: exercise.isCustom
-                ? CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () async {
-                      await DatabaseHelper.instance
-                          .deleteExercise(exercise.id!);
-                      _loadExercises();
-                    },
-                    child: const Icon(CupertinoIcons.delete),
-                  )
-                : null,
+      body: Consumer<ExerciseProvider>(
+        builder: (context, exerciseProvider, child) {
+          if (exerciseProvider.exercises.isEmpty) {
+            exerciseProvider.loadExercises();
+            return const Center(child: CupertinoActivityIndicator());
+          }
+          return ListView.builder(
+            itemCount: exerciseProvider.exercises.length,
+            itemBuilder: (context, index) {
+              final exercise = exerciseProvider.exercises[index];
+              return CupertinoListTile(
+                title: Text(exercise.name),
+                trailing: exercise.isCustom
+                    ? CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () async {
+                          await exerciseProvider.deleteExercise(exercise.id!);
+                        },
+                        child: const Icon(CupertinoIcons.delete),
+                      )
+                    : null,
+              );
+            },
           );
         },
       ),

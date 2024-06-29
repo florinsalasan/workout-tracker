@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart';
+import '../providers/exercise_provider.dart';
+import '../services/db_helpers.dart';
 
 class ExerciseSelectionDialog extends StatefulWidget {
   const ExerciseSelectionDialog({super.key});
@@ -10,30 +11,20 @@ class ExerciseSelectionDialog extends StatefulWidget {
 }
 
 class ExerciseSelectionDialogState extends State<ExerciseSelectionDialog> {
-  List<Map<String, dynamic>> exercises = [];
   TextEditingController customExerciseController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadExercises();
-  }
-
-  Future<void> _loadExercises() async {
-    final db = Provider.of<Database>(context, listen: false);
-    final results = await db.query('exercises');
-    setState(() {
-      exercises = results;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ExerciseProvider>(context, listen: false).loadExercises();
     });
   }
 
   Future<void> _addCustomExercise(String name) async {
-    final db = Provider.of<Database>(context, listen: false);
-    await db.insert('exercises', {
-      'name': name,
-      'isCustom': 1,
-    });
-    _loadExercises();
+    final exerciseProvider =
+        Provider.of<ExerciseProvider>(context, listen: false);
+    await exerciseProvider.addExercise(Exercise(name: name, isCustom: true));
     customExerciseController.clear();
   }
 
@@ -49,34 +40,38 @@ class ExerciseSelectionDialogState extends State<ExerciseSelectionDialog> {
         ),
       ),
       child: SafeArea(
-        child: ListView(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: CupertinoTextField(
-                controller: customExerciseController,
-                placeholder: 'Add custom exercise',
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) {
-                    _addCustomExercise(value);
-                  }
-                },
-                suffix: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(CupertinoIcons.add_circled),
-                  onPressed: () {
-                    if (customExerciseController.text.isNotEmpty) {
-                      _addCustomExercise(customExerciseController.text);
-                    }
-                  },
+        child: Consumer<ExerciseProvider>(
+          builder: (context, exerciseProvider, child) {
+            return ListView(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: CupertinoTextField(
+                    controller: customExerciseController,
+                    placeholder: 'Add custom exercise',
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        _addCustomExercise(value);
+                      }
+                    },
+                    suffix: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: const Icon(CupertinoIcons.add_circled),
+                      onPressed: () {
+                        if (customExerciseController.text.isNotEmpty) {
+                          _addCustomExercise(customExerciseController.text);
+                        }
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            ...exercises.map((exercise) => CupertinoButton(
-                  child: Text(exercise['name']),
-                  onPressed: () => Navigator.of(context).pop(exercise['name']),
-                )),
-          ],
+                ...exerciseProvider.exercises.map((exercise) => CupertinoButton(
+                      child: Text(exercise.name),
+                      onPressed: () => Navigator.of(context).pop(exercise.name),
+                    )),
+              ],
+            );
+          },
         ),
       ),
     );
