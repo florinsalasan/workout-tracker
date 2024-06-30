@@ -44,19 +44,52 @@ class ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
     });
   }
 
+  void _removeExercise() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+          title: const Text('Alert'),
+          content: const Text("Are you sure you want to remove this exercise?"),
+          actions: <CupertinoDialogAction>[
+            CupertinoDialogAction(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Remove'),
+            ),
+          ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              widget.exerciseName,
-              style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-            ),
+          Row(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Text(
+                  widget.exerciseName,
+                  style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                ),
+              ),
+              const Spacer(flex: 1),
+              CupertinoButton(
+                  onPressed: _removeExercise,
+                  child: const Icon(CupertinoIcons.clear))
+            ],
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

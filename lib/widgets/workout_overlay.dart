@@ -121,7 +121,7 @@ class WorkoutOverlay extends StatelessWidget {
         ),
         const Text(
             style: TextStyle(
-                color: CupertinoColors.white, fontWeight: FontWeight.bold),
+                color: CupertinoColors.black, fontWeight: FontWeight.bold),
             "Active Workout"),
       ],
     );
@@ -129,11 +129,6 @@ class WorkoutOverlay extends StatelessWidget {
 
   List<Widget> _buildSlivers(BuildContext context, WorkoutState workoutState) {
     return [
-      const SliverToBoxAdapter(
-        child: Center(
-          child: Text('Workout'),
-        ),
-      ),
       const SliverToBoxAdapter(
         child: SizedBox(height: 20),
       ),
