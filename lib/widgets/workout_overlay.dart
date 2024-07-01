@@ -157,6 +157,12 @@ class WorkoutOverlay extends StatelessWidget {
           child: const Text("Add Exercise"),
         ),
       ),
+      SliverToBoxAdapter(
+        child: CupertinoButton(
+          onPressed: () => context.read<WorkoutState>().endWorkout(),
+          child: const Text('Cancel Workout'),
+        ),
+      )
     ];
   }
 }
