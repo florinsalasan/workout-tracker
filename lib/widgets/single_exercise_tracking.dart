@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'single_set.dart';
+import 'package:provider/provider.dart';
+import 'single_set_tracking.dart';
+import 'workout_overlay.dart';
 
 class ExerciseTrackingWidget extends StatefulWidget {
   final String exerciseName;
@@ -61,6 +63,7 @@ class ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
               isDefaultAction: true,
               isDestructiveAction: true,
               onPressed: () {
+                context.read<WorkoutState>().removeExercise(widget);
                 Navigator.pop(context);
               },
               child: const Text('Remove'),

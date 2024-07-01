@@ -2,11 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
-import 'package:workout_tracker/widgets/exercise_overlay.dart';
+import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   double _overlayHeight = 110; // Starting at minimized height
+  // This list holds the exercises that the user is currently tracking in their workout
   List<ExerciseTrackingWidget> _exercises = [];
 
   bool get isWorkoutActive => _isWorkoutActive;
@@ -45,6 +46,11 @@ class WorkoutState extends ChangeNotifier {
 
   void addExercise(String exerciseName) {
     _exercises.add(ExerciseTrackingWidget(exerciseName: exerciseName));
+    notifyListeners();
+  }
+
+  void removeExercise(ExerciseTrackingWidget exercise) {
+    _exercises.remove(exercise);
     notifyListeners();
   }
 }

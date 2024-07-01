@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
-import 'screens/home.dart';
-import 'screens/history.dart';
-import 'screens/analytics.dart';
-import 'screens/exercises.dart';
-import 'screens/scans.dart';
+import 'screens/screen_home.dart';
+import 'screens/screen_history.dart';
+import 'screens/screen_analytics.dart';
+import 'screens/screen_exercises.dart';
+import 'screens/screen_scans.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
