@@ -4,6 +4,7 @@ import 'package:workout_tracker/providers/exercise_provider.dart';
 import '../widgets/sliver_layout.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/db_helpers.dart';
+import '../widgets/add_exercise_dialog.dart';
 
 class ExercisesScreen extends StatefulWidget {
   const ExercisesScreen({super.key});
@@ -45,12 +46,13 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
                 CupertinoDialogAction(
+                  isDefaultAction: true,
                   child: const Text("Add"),
                   onPressed: () async {
                     if (controller.text.isNotEmpty) {
                       final newExercise =
                           Exercise(name: controller.text, isCustom: true);
-                      await DatabaseHelper.instance.insertExercise(newExercise);
+                      context.read<ExerciseProvider>().addExercise(newExercise);
                       Navigator.of(context).pop();
                       _loadExercises();
                     }
@@ -70,23 +72,34 @@ class ExercisesScreenState extends State<ExercisesScreen> {
             exerciseProvider.loadExercises();
             return const Center(child: CupertinoActivityIndicator());
           }
-          return ListView.builder(
-            itemCount: exerciseProvider.exercises.length,
-            itemBuilder: (context, index) {
-              final exercise = exerciseProvider.exercises[index];
-              return CupertinoListTile(
-                title: Text(exercise.name),
-                trailing: exercise.isCustom
-                    ? CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () async {
-                          await exerciseProvider.deleteExercise(exercise.id!);
-                        },
-                        child: const Icon(CupertinoIcons.delete),
-                      )
-                    : null,
-              );
-            },
+          return Column(
+            children: [
+              CupertinoButton(
+                onPressed: _addExercise,
+                child: Text("Add custom exercise"),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: exerciseProvider.exercises.length,
+                  itemBuilder: (context, index) {
+                    final exercise = exerciseProvider.exercises[index];
+                    return CupertinoListTile(
+                      title: Text(exercise.name),
+                      trailing: exercise.isCustom
+                          ? CupertinoButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: () async {
+                                await exerciseProvider
+                                    .deleteExercise(exercise.id!);
+                              },
+                              child: const Icon(CupertinoIcons.delete),
+                            )
+                          : null,
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
