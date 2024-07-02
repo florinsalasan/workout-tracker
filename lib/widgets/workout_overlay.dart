@@ -23,7 +23,7 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void endWorkout() {
+  void endWorkout(bool toSave) {
     _isWorkoutActive = false;
     _overlayHeight = minHeight;
     _exercises.clear();
@@ -159,10 +159,32 @@ class WorkoutOverlay extends StatelessWidget {
       ),
       SliverToBoxAdapter(
         child: CupertinoButton(
-          onPressed: () => context.read<WorkoutState>().endWorkout(),
-          child: const Text('Cancel Workout'),
+          onPressed: () => showCupertinoModalPopup(
+            context: context,
+            builder: (BuildContext context) => CupertinoAlertDialog(
+              title: const Text('Alert'),
+              content:
+                  const Text("Are you sure you want to cancel the workout?"),
+              actions: <CupertinoDialogAction>[
+                CupertinoDialogAction(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Cancel")),
+                CupertinoDialogAction(
+                    isDefaultAction: true,
+                    isDestructiveAction: true,
+                    onPressed: () {
+                      context.read<WorkoutState>().endWorkout(false);
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Cancel Workout"))
+              ],
+            ),
+          ),
+          child: const Text("Cancel Workout"),
         ),
-      )
+      ),
     ];
   }
 }
