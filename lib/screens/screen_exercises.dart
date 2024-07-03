@@ -4,7 +4,6 @@ import 'package:workout_tracker/providers/exercise_provider.dart';
 import '../widgets/sliver_layout.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/db_helpers.dart';
-import '../widgets/add_exercise_dialog.dart';
 
 class ExercisesScreen extends StatefulWidget {
   const ExercisesScreen({super.key});
