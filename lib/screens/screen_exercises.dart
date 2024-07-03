@@ -34,7 +34,7 @@ class ExercisesScreenState extends State<ExercisesScreen> {
         context: context,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
-              title: const Text('Add New Exercise'),
+              title: const Text('Add New Exercise\n'),
               content: CupertinoTextField(
                 controller: controller,
                 placeholder: "Exercise Name",
@@ -75,7 +75,7 @@ class ExercisesScreenState extends State<ExercisesScreen> {
             children: [
               CupertinoButton(
                 onPressed: _addExercise,
-                child: Text("Add custom exercise"),
+                child: const Text("Add custom exercise"),
               ),
               Expanded(
                 child: ListView.builder(
