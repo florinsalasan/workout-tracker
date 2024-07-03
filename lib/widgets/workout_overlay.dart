@@ -8,7 +8,7 @@ class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   double _overlayHeight = 110; // Starting at minimized height
   // This list holds the exercises that the user is currently tracking in their workout
-  List<ExerciseTrackingWidget> _exercises = [];
+  final List<ExerciseTrackingWidget> _exercises = [];
 
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;

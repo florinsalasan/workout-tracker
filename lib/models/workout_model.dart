@@ -1,7 +1,7 @@
 class CompletedWorkout {
   final int? id;
   final DateTime date;
-  final List<CompletedExercise> exercises;
+  List<CompletedExercise> exercises;
   final int durationInSeconds;
 
   CompletedWorkout({
@@ -33,7 +33,7 @@ class CompletedExercise {
   final int? id;
   final int workoutId;
   final String name;
-  final List<CompletedSet> sets;
+  List<CompletedSet> sets;
 
   CompletedExercise({
     this.id,
