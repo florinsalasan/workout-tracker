@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:workout_tracker/models/workout_model.dart';
+import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 
@@ -9,6 +11,7 @@ class WorkoutState extends ChangeNotifier {
   double _overlayHeight = 110; // Starting at minimized height
   // This list holds the exercises that the user is currently tracking in their workout
   final List<ExerciseTrackingWidget> _exercises = [];
+  DateTime? _workoutStartTime;
 
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;
@@ -20,13 +23,48 @@ class WorkoutState extends ChangeNotifier {
   void startWorkout() {
     _isWorkoutActive = true;
     _overlayHeight = maxHeight;
+    _workoutStartTime = DateTime.now();
     notifyListeners();
   }
 
-  void endWorkout(bool toSave) {
+  Future<void> endWorkout(BuildContext context) async {
+    if (_workoutStartTime == null) {
+      print("Something went wrong with start time of the workout");
+      return;
+    }
+    final database = Provider.of<Database>(context, listen: false);
+    final dbHelper = DatabaseHelper.instance;
+
+    final now = DateTime.now();
+    final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
+
+    final completedWorkout = CompletedWorkout(
+        date: now,
+        exercises: _exercises
+            .map((exercise) => CompletedExercise(
+                  workoutId: 0,
+                  name: exercise.exerciseName,
+                  sets: exercise.sets
+                      .map((set) => CompletedSet(
+                            exerciseId: 0,
+                            reps: set.reps,
+                            weight: set.weight,
+                          ))
+                      .toList(),
+                ))
+            .toList(),
+        durationInSeconds: durationInSeconds);
+
+    await dbHelper.insertCompletedWorkout(completedWorkout);
+    cancelWorkout();
+  }
+
+  void cancelWorkout() {
+    // end workout without saving anything, can't think of a better name tbh
     _isWorkoutActive = false;
     _overlayHeight = minHeight;
     _exercises.clear();
+    _workoutStartTime = null;
     notifyListeners();
   }
 
@@ -102,6 +140,7 @@ class WorkoutOverlay extends StatelessWidget {
                       slivers: _buildSlivers(context, workoutState),
                     ),
                   ),
+                  _buildEndWorkoutButton(context, workoutState),
                   const SizedBox(
                     height: 40,
                   ),
@@ -175,7 +214,7 @@ class WorkoutOverlay extends StatelessWidget {
                     isDefaultAction: true,
                     isDestructiveAction: true,
                     onPressed: () {
-                      context.read<WorkoutState>().endWorkout(false);
+                      context.read<WorkoutState>().endWorkout(context);
                       Navigator.pop(context);
                     },
                     child: const Text("Cancel Workout"))
@@ -186,5 +225,32 @@ class WorkoutOverlay extends StatelessWidget {
         ),
       ),
     ];
+  }
+
+  _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
+    return CupertinoButton(
+      onPressed: () => showCupertinoModalPopup(
+        context: context,
+        builder: (BuildContext context) => CupertinoAlertDialog(
+          title: const Text("End Workout"),
+          content: const Text("Are you sure you want to end the workout?"),
+          actions: <CupertinoDialogAction>[
+            CupertinoDialogAction(
+                onPressed: () => {
+                      Navigator.pop(context),
+                    },
+                child: const Text("Cancel")),
+            CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: () => {
+                      workoutState.endWorkout(context),
+                      Navigator.pop(context),
+                    },
+                child: const Text("End Workout")),
+          ],
+        ),
+      ),
+      child: const Text("End Workout"),
+    );
   }
 }

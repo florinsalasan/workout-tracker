@@ -8,6 +8,8 @@ class ExerciseTrackingWidget extends StatefulWidget {
 
   const ExerciseTrackingWidget({super.key, required this.exerciseName});
 
+  get sets => null;
+
   @override
   ExerciseTrackingWidgetState createState() => ExerciseTrackingWidgetState();
 }
