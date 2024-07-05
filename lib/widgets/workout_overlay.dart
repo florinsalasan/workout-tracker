@@ -32,7 +32,6 @@ class WorkoutState extends ChangeNotifier {
       print("Something went wrong with start time of the workout");
       return;
     }
-    final database = Provider.of<Database>(context, listen: false);
     final dbHelper = DatabaseHelper.instance;
 
     final now = DateTime.now();
@@ -134,13 +133,12 @@ class WorkoutOverlay extends StatelessWidget {
                   ]),
               child: Column(
                 children: [
-                  _buildHandle(),
+                  _buildHandle(context, workoutState),
                   Expanded(
                     child: CustomScrollView(
                       slivers: _buildSlivers(context, workoutState),
                     ),
                   ),
-                  _buildEndWorkoutButton(context, workoutState),
                   const SizedBox(
                     height: 40,
                   ),
@@ -153,21 +151,39 @@ class WorkoutOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildHandle() {
+  Widget _buildHandle(BuildContext context, WorkoutState workoutState) {
     return Column(
       children: [
         Container(
           height: 5,
-          width: 40,
+          width: 50,
           margin: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
               color: CupertinoColors.black,
               borderRadius: BorderRadius.circular(100)),
         ),
-        const Text(
-            style: TextStyle(
-                color: CupertinoColors.black, fontWeight: FontWeight.bold),
-            "Active Workout"),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  style: TextStyle(
+                      color: CupertinoColors.black,
+                      fontWeight: FontWeight.bold),
+                  "Active Workout",
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _buildEndWorkoutButton(context, workoutState),
+              ],
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -197,34 +213,41 @@ class WorkoutOverlay extends StatelessWidget {
         ),
       ),
       SliverToBoxAdapter(
-        child: CupertinoButton(
-          onPressed: () => showCupertinoModalPopup(
-            context: context,
-            builder: (BuildContext context) => CupertinoAlertDialog(
-              title: const Text('Alert'),
-              content:
-                  const Text("Are you sure you want to cancel the workout?"),
-              actions: <CupertinoDialogAction>[
-                CupertinoDialogAction(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text("Cancel")),
-                CupertinoDialogAction(
-                    isDefaultAction: true,
-                    isDestructiveAction: true,
-                    onPressed: () {
-                      context.read<WorkoutState>().endWorkout(context);
-                      Navigator.pop(context);
-                    },
-                    child: const Text("Cancel Workout"))
-              ],
-            ),
-          ),
-          child: const Text("Cancel Workout"),
-        ),
+        child: _buildCancelWorkoutButton(context, workoutState),
       ),
     ];
+  }
+
+  _buildCancelWorkoutButton(BuildContext context, WorkoutState workoutState) {
+    return CupertinoButton(
+      onPressed: () => showCupertinoModalPopup(
+        context: context,
+        builder: (BuildContext context) => CupertinoAlertDialog(
+          title: const Text('Alert'),
+          content: const Text("Are you sure you want to cancel the workout?"),
+          actions: <CupertinoDialogAction>[
+            CupertinoDialogAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("Cancel")),
+            CupertinoDialogAction(
+                isDefaultAction: true,
+                isDestructiveAction: true,
+                onPressed: () {
+                  context.read<WorkoutState>().cancelWorkout();
+                  Navigator.pop(context);
+                },
+                child: const Text("Cancel Workout"))
+          ],
+        ),
+      ),
+      child: const Text(
+          style: TextStyle(
+            color: CupertinoColors.destructiveRed,
+          ),
+          "Cancel Workout"),
+    );
   }
 
   _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
@@ -250,7 +273,11 @@ class WorkoutOverlay extends StatelessWidget {
           ],
         ),
       ),
-      child: const Text("End Workout"),
+      child: const Text(
+          style: TextStyle(
+            color: CupertinoColors.systemGreen,
+          ),
+          "End Workout"),
     );
   }
 }
