@@ -27,7 +27,8 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> endWorkout(BuildContext context) async {
+  Future<void> endWorkout(
+      BuildContext context, WorkoutState workoutState) async {
     if (_workoutStartTime == null) {
       print("Something went wrong with start time of the workout");
       return;
@@ -36,6 +37,8 @@ class WorkoutState extends ChangeNotifier {
 
     final now = DateTime.now();
     final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
+
+    print("workout state: ${workoutState._exercises}");
 
     final completedWorkout = CompletedWorkout(
         date: now,
@@ -266,7 +269,7 @@ class WorkoutOverlay extends StatelessWidget {
             CupertinoDialogAction(
                 isDefaultAction: true,
                 onPressed: () => {
-                      workoutState.endWorkout(context),
+                      workoutState.endWorkout(context, workoutState),
                       Navigator.pop(context),
                     },
                 child: const Text("End Workout")),
