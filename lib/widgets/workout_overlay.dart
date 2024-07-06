@@ -5,6 +5,7 @@ import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
+import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -38,23 +39,27 @@ class WorkoutState extends ChangeNotifier {
     final now = DateTime.now();
     final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
 
-    print("workout state: ${workoutState._exercises}");
+    print("workout state: ${workoutState._exercises[0].key}");
 
     final completedWorkout = CompletedWorkout(
         date: now,
-        exercises: _exercises
-            .map((exercise) => CompletedExercise(
-                  workoutId: 0,
-                  name: exercise.exerciseName,
-                  sets: exercise.sets
-                      .map((set) => CompletedSet(
-                            exerciseId: 0,
-                            reps: set.reps,
-                            weight: set.weight,
-                          ))
-                      .toList(),
-                ))
-            .toList(),
+        exercises: _exercises.map((exercise) {
+          final state = (exercise.key as GlobalKey<ExerciseTrackingWidgetState>)
+              .currentState!;
+          return CompletedExercise(
+              workoutId: 0,
+              name: exercise.exerciseName,
+              sets: state.sets.map((set) {
+                final setState = (set.key as GlobalKey<SetTrackingWidgetState>)
+                    .currentState!;
+                return CompletedSet(
+                  exerciseId: 0,
+                  reps: int.tryParse(setState.repsController.text) ?? 0,
+                  weight:
+                      double.tryParse(setState.weightController.text) ?? 0.0,
+                );
+              }).toList());
+        }).toList(),
         durationInSeconds: durationInSeconds);
 
     await dbHelper.insertCompletedWorkout(completedWorkout);

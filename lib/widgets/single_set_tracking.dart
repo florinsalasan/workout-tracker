@@ -17,21 +17,19 @@ class SetTrackingWidget extends StatefulWidget {
 }
 
 class SetTrackingWidgetState extends State<SetTrackingWidget> {
-  late TextEditingController _weightController;
-  late TextEditingController _repsController;
+  final TextEditingController weightController = TextEditingController();
+  final TextEditingController repsController = TextEditingController();
   bool _isCompleted = false;
 
   @override
   void initState() {
     super.initState();
-    _weightController = TextEditingController();
-    _repsController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _weightController.dispose();
-    _repsController.dispose();
+    weightController.dispose();
+    repsController.dispose();
     super.dispose();
   }
 
@@ -66,7 +64,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
           Expanded(
             flex: 1,
             child: CupertinoTextField(
-              controller: _weightController,
+              controller: weightController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               placeholder: 'Weight',
@@ -77,7 +75,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
           Expanded(
             flex: 1,
             child: CupertinoTextField(
-              controller: _repsController,
+              controller: repsController,
               keyboardType: TextInputType.number,
               placeholder: 'Reps',
             ),

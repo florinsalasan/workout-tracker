@@ -8,14 +8,14 @@ class ExerciseTrackingWidget extends StatefulWidget {
 
   const ExerciseTrackingWidget({super.key, required this.exerciseName});
 
-  get sets => null;
-
   @override
   ExerciseTrackingWidgetState createState() => ExerciseTrackingWidgetState();
 }
 
 class ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
-  List<SetTrackingWidget> sets = [];
+  List<SetTrackingWidget> _sets = [];
+
+  List<SetTrackingWidget> get sets => _sets;
 
   @override
   void initState() {
@@ -26,9 +26,9 @@ class ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
 
   void _addSet() {
     setState(() {
-      sets.add(SetTrackingWidget(
+      _sets.add(SetTrackingWidget(
         key: UniqueKey(),
-        setNumber: sets.length + 1,
+        setNumber: _sets.length + 1,
         // can pass previous weight and reps here if available
       ));
     });
@@ -36,13 +36,13 @@ class ExerciseTrackingWidgetState extends State<ExerciseTrackingWidget> {
 
   void _removeSet(int index) {
     setState(() {
-      sets.removeAt(index);
-      for (int i = index; i < sets.length; i++) {
-        sets[i] = SetTrackingWidget(
+      _sets.removeAt(index);
+      for (int i = index; i < _sets.length; i++) {
+        _sets[i] = SetTrackingWidget(
           key: UniqueKey(),
           setNumber: i + 1,
-          previousReps: sets[i].previousReps,
-          previousWeight: sets[i].previousWeight,
+          previousReps: _sets[i].previousReps,
+          previousWeight: _sets[i].previousWeight,
         );
       }
     });
