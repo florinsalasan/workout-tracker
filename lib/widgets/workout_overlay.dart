@@ -11,12 +11,12 @@ class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   double _overlayHeight = 110; // Starting at minimized height
   // This list holds the exercises that the user is currently tracking in their workout
-  final List<ExerciseTrackingWidget> _exercises = [];
+  final List<Exercise> _exercises = [];
   DateTime? _workoutStartTime;
 
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;
-  List<ExerciseTrackingWidget> get exercises => _exercises;
+  List<Exercise> get exercises => _exercises;
 
   static const double minHeight = 25;
   static const double maxHeight = 800;
@@ -28,8 +28,7 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> endWorkout(
-      BuildContext context, WorkoutState workoutState) async {
+  Future<void> endWorkout(BuildContext context) async {
     if (_workoutStartTime == null) {
       print("Something went wrong with start time of the workout");
       return;
@@ -39,27 +38,18 @@ class WorkoutState extends ChangeNotifier {
     final now = DateTime.now();
     final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
 
-    print("workout state: ${workoutState._exercises[0].key}");
-
     final completedWorkout = CompletedWorkout(
         date: now,
-        exercises: _exercises.map((exercise) {
-          final state = (exercise.key as GlobalKey<ExerciseTrackingWidgetState>)
-              .currentState!;
-          return CompletedExercise(
-              workoutId: 0,
-              name: exercise.exerciseName,
-              sets: state.sets.map((set) {
-                final setState = (set.key as GlobalKey<SetTrackingWidgetState>)
-                    .currentState!;
-                return CompletedSet(
-                  exerciseId: 0,
-                  reps: int.tryParse(setState.repsController.text) ?? 0,
-                  weight:
-                      double.tryParse(setState.weightController.text) ?? 0.0,
-                );
-              }).toList());
-        }).toList(),
+        exercises: _exercises
+            .map((exercise) => CompletedExercise(
+                  workoutId: 0,
+                  name: exercise.name,
+                  sets: exercise.sets
+                      .map((set) => CompletedSet(
+                          exerciseId: 0, reps: set.reps, weight: set.weight))
+                      .toList(),
+                ))
+            .toList(),
         durationInSeconds: durationInSeconds);
 
     await dbHelper.insertCompletedWorkout(completedWorkout);
@@ -90,13 +80,29 @@ class WorkoutState extends ChangeNotifier {
   }
 
   void addExercise(String exerciseName) {
-    _exercises.add(ExerciseTrackingWidget(exerciseName: exerciseName));
+    _exercises.add(Exercise(name: exerciseName));
     notifyListeners();
   }
 
   void removeExercise(ExerciseTrackingWidget exercise) {
     _exercises.remove(exercise);
     notifyListeners();
+  }
+
+  void addSet(int exerciseIndex, double weight, int reps) {
+    if (exerciseIndex < _exercises.length) {
+      _exercises[exerciseIndex].addSet(weight, reps);
+      notifyListeners();
+    }
+  }
+
+  void updateSet(int exerciseIndex, int setIndex, double weight, int reps) {
+    if (exerciseIndex < _exercises.length &&
+        setIndex < exercises[exerciseIndex].sets.length) {
+      _exercises[exerciseIndex].sets[setIndex] =
+          ExerciseSet(weight: weight, reps: reps);
+      notifyListeners();
+    }
   }
 }
 
@@ -201,7 +207,16 @@ class WorkoutOverlay extends StatelessWidget {
       const SliverToBoxAdapter(
         child: SizedBox(height: 20),
       ),
-      ...workoutState.exercises,
+      ...workoutState.exercises.asMap().entries.map((entry) {
+        final index = entry.key;
+        final exercise = entry.value;
+        return SliverToBoxAdapter(
+          child: ExerciseTrackingWidget(
+            exerciseIndex: index,
+            exerciseName: exercise.name,
+          ),
+        );
+      }),
       SliverToBoxAdapter(
         child: CupertinoButton(
           onPressed: () async {
@@ -274,7 +289,7 @@ class WorkoutOverlay extends StatelessWidget {
             CupertinoDialogAction(
                 isDefaultAction: true,
                 onPressed: () => {
-                      workoutState.endWorkout(context, workoutState),
+                      workoutState.endWorkout(context),
                       Navigator.pop(context),
                     },
                 child: const Text("End Workout")),
@@ -288,4 +303,22 @@ class WorkoutOverlay extends StatelessWidget {
           "End Workout"),
     );
   }
+}
+
+class Exercise {
+  final String name;
+  final List<ExerciseSet> sets;
+
+  Exercise({required this.name}) : sets = [];
+
+  void addSet(double weight, int reps) {
+    sets.add(ExerciseSet(weight: weight, reps: reps));
+  }
+}
+
+class ExerciseSet {
+  double weight;
+  int reps;
+
+  ExerciseSet({required this.weight, required this.reps});
 }
