@@ -2,109 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 
-// class SetTrackingWidget extends StatefulWidget {
-//   final int setNumber;
-//   final String? previousWeight;
-//   final String? previousReps;
-
-//   const SetTrackingWidget({
-//     super.key,
-//     required this.setNumber,
-//     this.previousWeight,
-//     this.previousReps,
-//   });
-
-//   @override
-//   SetTrackingWidgetState createState() => SetTrackingWidgetState();
-// }
-
-// class SetTrackingWidgetState extends State<SetTrackingWidget> {
-//   final TextEditingController weightController = TextEditingController();
-//   final TextEditingController repsController = TextEditingController();
-//   bool _isCompleted = false;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//   }
-
-//   @override
-//   void dispose() {
-//     weightController.dispose();
-//     repsController.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Padding(
-//       padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
-//       child: Row(
-//         children: [
-//           // Set Number
-//           SizedBox(
-//             width: 8,
-//             child: Text(
-//               '${widget.setNumber}',
-//               style: CupertinoTheme.of(context).textTheme.textStyle,
-//             ),
-//           ),
-//           // Previous Lifts
-//           if (widget.previousWeight != null && widget.previousReps != null)
-//             Expanded(
-//               flex: 2,
-//               child: Text(
-//                 '${widget.previousWeight} x ${widget.previousReps}',
-//                 style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-//                       color: CupertinoColors.systemGrey,
-//                     ),
-//               ),
-//             )
-//           else
-//             const Spacer(flex: 2),
-//           // Weight Input
-//           Expanded(
-//             flex: 1,
-//             child: CupertinoTextField(
-//               controller: weightController,
-//               keyboardType:
-//                   const TextInputType.numberWithOptions(decimal: true),
-//               placeholder: 'Weight',
-//             ),
-//           ),
-//           const SizedBox(width: 8),
-//           // Reps Input
-//           Expanded(
-//             flex: 1,
-//             child: CupertinoTextField(
-//               controller: repsController,
-//               keyboardType: TextInputType.number,
-//               placeholder: 'Reps',
-//             ),
-//           ),
-//           const SizedBox(width: 8),
-//           // Completed Checkbox
-//           CupertinoButton(
-//             padding: EdgeInsets.zero,
-//             onPressed: () {
-//               setState(() {
-//                 _isCompleted = !_isCompleted;
-//               });
-//             },
-//             child: Icon(
-//               _isCompleted
-//                   ? CupertinoIcons.check_mark_circled_solid
-//                   : CupertinoIcons.circle,
-//               color: _isCompleted
-//                   ? CupertinoColors.activeBlue
-//                   : CupertinoColors.systemGrey,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
 class SetTrackingWidget extends StatefulWidget {
   final int exerciseIndex;
   final int setIndex;
@@ -112,12 +9,12 @@ class SetTrackingWidget extends StatefulWidget {
   final int initialReps;
 
   const SetTrackingWidget({
-    Key? key,
+    super.key,
     required this.exerciseIndex,
     required this.setIndex,
     required this.initialWeight,
     required this.initialReps,
-  }) : super(key: key);
+  });
 
   @override
   SetTrackingWidgetState createState() => SetTrackingWidgetState();
@@ -126,6 +23,7 @@ class SetTrackingWidget extends StatefulWidget {
 class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _weightController;
   late TextEditingController _repsController;
+  bool _isCompleted = false;
 
   @override
   void initState() {
@@ -145,27 +43,66 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text('Set ${widget.setIndex + 1}'),
-        Expanded(
-          child: CupertinoTextField(
-            controller: _weightController,
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            placeholder: 'Weight',
-            onChanged: (value) => _updateSet(context),
-          ),
-        ),
-        Expanded(
-          child: CupertinoTextField(
-            controller: _repsController,
-            keyboardType: TextInputType.number,
-            placeholder: 'Reps',
-            onChanged: (value) => _updateSet(context),
-          ),
-        ),
-      ],
-    );
+    return Padding(
+        padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 30,
+              child: Text(
+                '${widget.setIndex + 1}',
+                style: CupertinoTheme.of(context).textTheme.textStyle,
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                '${widget.initialWeight} x ${widget.initialReps}',
+                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                      color: CupertinoColors.systemGrey,
+                    ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: CupertinoTextField(
+                controller: _weightController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                placeholder: 'Weight',
+                onChanged: (value) => _updateSet(context),
+              ),
+            ),
+            const SizedBox(
+              width: 8,
+            ),
+            Expanded(
+              flex: 2,
+              child: CupertinoTextField(
+                controller: _repsController,
+                keyboardType: TextInputType.number,
+                placeholder: 'Reps',
+                onChanged: (value) => _updateSet(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: Icon(
+                  _isCompleted
+                      ? CupertinoIcons.check_mark_circled_solid
+                      : CupertinoIcons.circle,
+                  color: _isCompleted
+                      ? CupertinoColors.activeBlue
+                      : CupertinoColors.systemGrey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isCompleted = !_isCompleted;
+                  });
+                })
+          ],
+        ));
   }
 
   void _updateSet(BuildContext context) {

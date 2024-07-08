@@ -5,7 +5,6 @@ import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
-import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -53,6 +52,27 @@ class WorkoutState extends ChangeNotifier {
         durationInSeconds: durationInSeconds);
 
     await dbHelper.insertCompletedWorkout(completedWorkout);
+    try {
+      final id = await dbHelper.insertCompletedWorkout(completedWorkout);
+      print("Workout saved with ID: $id");
+
+      // Verify the save by retrieving the workout
+      final savedWorkout = await dbHelper.getCompletedWorkout(id);
+      if (savedWorkout != null) {
+        print("Retrieved workout: ${savedWorkout.toMap()}");
+        print("Number of exercises: ${savedWorkout.exercises.length}");
+        for (var exercise in savedWorkout.exercises) {
+          print("Exercise: ${exercise.name}, Sets: ${exercise.sets.length}");
+          for (var set in exercise.sets) {
+            print("  Set - Weight: ${set.weight}, Reps: ${set.reps}");
+          }
+        }
+      } else {
+        print("Failed to retrieve saved workout");
+      }
+    } catch (e) {
+      print("Error saving workout: $e");
+    }
     cancelWorkout();
   }
 
@@ -84,9 +104,19 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeExercise(ExerciseTrackingWidget exercise) {
-    _exercises.remove(exercise);
-    notifyListeners();
+  void removeExercise(int index) {
+    if (index < _exercises.length) {
+      _exercises.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  void removeSet(int exerciseIndex, int setIndex) {
+    if (exerciseIndex < _exercises.length &&
+        setIndex < _exercises[exerciseIndex].sets.length) {
+      _exercises[exerciseIndex].sets.removeAt(setIndex);
+      notifyListeners();
+    }
   }
 
   void addSet(int exerciseIndex, double weight, int reps) {
