@@ -28,7 +28,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _repsController;
   late FocusNode _weightFocusNode;
   late FocusNode _repsFocusNode;
-  late bool _isCompleted;
 
   @override
   void initState() {
@@ -39,7 +38,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         TextEditingController(text: widget.initialReps.toString());
     _weightFocusNode = FocusNode();
     _repsFocusNode = FocusNode();
-    _isCompleted = widget.isCompleted;
 
     _weightFocusNode.addListener(_handleWeightFocusChange);
     _repsFocusNode.addListener(_handleRepsFocusChange);
@@ -80,81 +78,91 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-        padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 30,
-              child: Text(
-                '${widget.setIndex + 1}',
-                style: CupertinoTheme.of(context).textTheme.textStyle,
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                // '${widget.initialWeight} x ${widget.initialReps}',
-                '',
-                style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                      color: CupertinoColors.systemGrey,
-                    ),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: CupertinoTextField(
-                controller: _weightController,
-                focusNode: _weightFocusNode,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                placeholder: 'Weight',
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
-                ],
-              ),
-            ),
-            const SizedBox(
-              width: 8,
-            ),
-            Expanded(
-              flex: 2,
-              child: CupertinoTextField(
-                controller: _repsController,
-                focusNode: _repsFocusNode,
-                keyboardType: TextInputType.number,
-                placeholder: 'Reps',
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: Icon(
-                  _isCompleted
-                      ? CupertinoIcons.check_mark_circled_solid
-                      : CupertinoIcons.circle,
-                  color: _isCompleted
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.systemGrey,
+    return Consumer<WorkoutState>(
+      builder: (context, workoutState, child) {
+        final exercise = workoutState.exercises[widget.exerciseIndex];
+        final set = exercise.sets[widget.setIndex];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 30,
+                child: Text(
+                  '${widget.setIndex + 1}',
+                  style: CupertinoTheme.of(context).textTheme.textStyle,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isCompleted = !_isCompleted;
-                  });
-                })
-          ],
-        ));
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  // '${widget.initialWeight} x ${widget.initialReps}',
+                  '',
+                  style:
+                      CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                            color: CupertinoColors.systemGrey,
+                          ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: CupertinoTextField(
+                  controller: _weightController,
+                  focusNode: _weightFocusNode,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  placeholder: 'Weight',
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}$')),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                width: 8,
+              ),
+              Expanded(
+                flex: 2,
+                child: CupertinoTextField(
+                  controller: _repsController,
+                  focusNode: _repsFocusNode,
+                  keyboardType: TextInputType.number,
+                  placeholder: 'Reps',
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    set.isCompleted
+                        ? CupertinoIcons.check_mark_circled_solid
+                        : CupertinoIcons.circle,
+                    color: set.isCompleted
+                        ? CupertinoColors.activeBlue
+                        : CupertinoColors.systemGrey,
+                  ),
+                  onPressed: () {
+                    final newIsCompleted = !set.isCompleted;
+                    workoutState.updateSet(widget.exerciseIndex,
+                        widget.setIndex, set.weight, set.reps, newIsCompleted);
+                  })
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _updateSet(BuildContext context) {
     final workoutState = context.read<WorkoutState>();
-    final weight =
-        double.tryParse(_weightController.text) ?? widget.initialWeight;
-    final reps = int.tryParse(_repsController.text) ?? widget.initialReps;
+    final exercise = workoutState.exercises[widget.exerciseIndex];
+    final set = exercise.sets[widget.setIndex];
+    final weight = double.tryParse(_weightController.text) ?? set.weight;
+    final reps = int.tryParse(_repsController.text) ?? set.reps;
     workoutState.updateSet(
-        widget.exerciseIndex, widget.setIndex, weight, reps, _isCompleted);
+        widget.exerciseIndex, widget.setIndex, weight, reps, set.isCompleted);
   }
 }

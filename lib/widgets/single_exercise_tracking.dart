@@ -89,7 +89,7 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   setIndex: setIndex,
                   initialWeight: set.weight,
                   initialReps: set.reps,
-                  isCompleted: false,
+                  isCompleted: set.isCompleted,
                 ),
               );
             }),
