@@ -126,11 +126,12 @@ class WorkoutState extends ChangeNotifier {
     }
   }
 
-  void updateSet(int exerciseIndex, int setIndex, double weight, int reps) {
+  void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
+      bool isCompleted) {
     if (exerciseIndex < _exercises.length &&
         setIndex < exercises[exerciseIndex].sets.length) {
       _exercises[exerciseIndex].sets[setIndex] =
-          ExerciseSet(weight: weight, reps: reps);
+          ExerciseSet(weight: weight, reps: reps, isCompleted: isCompleted);
       notifyListeners();
     }
   }
@@ -342,13 +343,15 @@ class Exercise {
   Exercise({required this.name}) : sets = [];
 
   void addSet(double weight, int reps) {
-    sets.add(ExerciseSet(weight: weight, reps: reps));
+    sets.add(ExerciseSet(weight: weight, reps: reps, isCompleted: false));
   }
 }
 
 class ExerciseSet {
   double weight;
   int reps;
+  bool isCompleted;
 
-  ExerciseSet({required this.weight, required this.reps});
+  ExerciseSet(
+      {required this.weight, required this.reps, required this.isCompleted});
 }

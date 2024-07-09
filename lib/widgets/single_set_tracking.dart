@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 
@@ -7,6 +8,7 @@ class SetTrackingWidget extends StatefulWidget {
   final int setIndex;
   final double initialWeight;
   final int initialReps;
+  final bool isCompleted;
 
   const SetTrackingWidget({
     super.key,
@@ -14,6 +16,7 @@ class SetTrackingWidget extends StatefulWidget {
     required this.setIndex,
     required this.initialWeight,
     required this.initialReps,
+    required this.isCompleted,
   });
 
   @override
@@ -23,7 +26,9 @@ class SetTrackingWidget extends StatefulWidget {
 class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _weightController;
   late TextEditingController _repsController;
-  bool _isCompleted = false;
+  late FocusNode _weightFocusNode;
+  late FocusNode _repsFocusNode;
+  late bool _isCompleted;
 
   @override
   void initState() {
@@ -32,12 +37,44 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         TextEditingController(text: widget.initialWeight.toString());
     _repsController =
         TextEditingController(text: widget.initialReps.toString());
+    _weightFocusNode = FocusNode();
+    _repsFocusNode = FocusNode();
+    _isCompleted = widget.isCompleted;
+
+    _weightFocusNode.addListener(_handleWeightFocusChange);
+    _repsFocusNode.addListener(_handleRepsFocusChange);
+  }
+
+  void _handleWeightFocusChange() {
+    if (_weightFocusNode.hasFocus) {
+      _weightController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _weightController.text.length,
+      );
+    } else {
+      _updateSet(context);
+    }
+  }
+
+  void _handleRepsFocusChange() {
+    if (_repsFocusNode.hasFocus) {
+      _repsController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _repsController.text.length,
+      );
+    } else {
+      _updateSet(context);
+    }
   }
 
   @override
   void dispose() {
     _weightController.dispose();
     _repsController.dispose();
+    _weightFocusNode.removeListener(_handleWeightFocusChange);
+    _repsFocusNode.removeListener(_handleRepsFocusChange);
+    _weightFocusNode.dispose();
+    _repsFocusNode.dispose();
     super.dispose();
   }
 
@@ -57,7 +94,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
             Expanded(
               flex: 2,
               child: Text(
-                '${widget.initialWeight} x ${widget.initialReps}',
+                // '${widget.initialWeight} x ${widget.initialReps}',
+                '',
                 style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                       color: CupertinoColors.systemGrey,
                     ),
@@ -67,10 +105,13 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               flex: 2,
               child: CupertinoTextField(
                 controller: _weightController,
+                focusNode: _weightFocusNode,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 placeholder: 'Weight',
-                onChanged: (value) => _updateSet(context),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
+                ],
               ),
             ),
             const SizedBox(
@@ -80,9 +121,12 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               flex: 2,
               child: CupertinoTextField(
                 controller: _repsController,
+                focusNode: _repsFocusNode,
                 keyboardType: TextInputType.number,
                 placeholder: 'Reps',
-                onChanged: (value) => _updateSet(context),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
               ),
             ),
             const SizedBox(width: 8),
@@ -106,13 +150,11 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
   }
 
   void _updateSet(BuildContext context) {
-    final weight = double.tryParse(_weightController.text) ?? 0.0;
-    final reps = int.tryParse(_repsController.text) ?? 0;
-    Provider.of<WorkoutState>(context, listen: false).updateSet(
-      widget.exerciseIndex,
-      widget.setIndex,
-      weight,
-      reps,
-    );
+    final workoutState = context.read<WorkoutState>();
+    final weight =
+        double.tryParse(_weightController.text) ?? widget.initialWeight;
+    final reps = int.tryParse(_repsController.text) ?? widget.initialReps;
+    workoutState.updateSet(
+        widget.exerciseIndex, widget.setIndex, weight, reps, _isCompleted);
   }
 }

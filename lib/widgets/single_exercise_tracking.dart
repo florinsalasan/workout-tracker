@@ -58,25 +58,38 @@ class ExerciseTrackingWidget extends StatelessWidget {
               final setIndex = entry.key;
               final set = entry.value;
               return Dismissible(
-                key: ValueKey('$exerciseIndex-$setIndex'),
+                key: UniqueKey(),
                 direction: DismissDirection.endToStart,
                 onDismissed: (direction) {
-                  workoutState.removeSet(exerciseIndex, setIndex);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    workoutState.removeSet(exerciseIndex, setIndex);
+                  });
                 },
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20.0),
                   color: CupertinoColors.destructiveRed,
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(color: CupertinoColors.white),
-                  ),
+                  child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(
+                          CupertinoIcons.trash,
+                          color: CupertinoColors.white,
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          'Delete',
+                          style: TextStyle(color: CupertinoColors.white),
+                        ),
+                      ]),
                 ),
                 child: SetTrackingWidget(
+                  key: ValueKey('$exerciseIndex-$setIndex'),
                   exerciseIndex: exerciseIndex,
                   setIndex: setIndex,
                   initialWeight: set.weight,
                   initialReps: set.reps,
+                  isCompleted: false,
                 ),
               );
             }),
