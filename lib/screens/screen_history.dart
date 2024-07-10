@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
+import 'package:workout_tracker/widgets/workout_details_view.dart';
+import 'package:workout_tracker/widgets/workout_preview.dart';
 import '../widgets/sliver_layout.dart';
 import '../models/workout_model.dart';
 
@@ -87,93 +89,17 @@ class HistoryScreen extends StatelessWidget {
         Provider.of<HistoryProvider>(context, listen: false)
             .deleteCompletedWorkout(workout.id!);
       },
-      child: GestureDetector(
+      child: WorkoutPreview(
+        workout: workout,
         onTap: () => _showWorkoutDetails(context, workout),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            border:
-                Border(bottom: BorderSide(color: CupertinoColors.separator)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Workout on ${_formatDate(workout.date)}',
-                    style: CupertinoTheme.of(context)
-                        .textTheme
-                        .textStyle
-                        .copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Duration: ${_formatDuration(workout.durationInSeconds)}',
-                    style: CupertinoTheme.of(context)
-                        .textTheme
-                        .textStyle
-                        .copyWith(color: CupertinoColors.secondaryLabel),
-                  ),
-                ],
-              ),
-              const Icon(CupertinoIcons.right_chevron,
-                  color: CupertinoColors.secondaryLabel),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDuration(int seconds) {
-    final duration = Duration(seconds: seconds);
-    return '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
-  }
-
   void _showWorkoutDetails(BuildContext context, CompletedWorkout workout) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) => CupertinoPopupSurface(
-        child: Container(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Workout on ${_formatDate(workout.date)}',
-                  style:
-                      CupertinoTheme.of(context).textTheme.navTitleTextStyle),
-              const SizedBox(height: 8),
-              Text('Duration: ${_formatDuration(workout.durationInSeconds)}'),
-              const SizedBox(height: 16),
-              const Text('Exercises:'),
-              ...workout.exercises.map((exercise) => Padding(
-                    padding: const EdgeInsets.only(left: 16.0, top: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(exercise.name,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        ...exercise.sets.map((set) =>
-                            Text('${set.weight} kg x ${set.reps} reps')),
-                      ],
-                    ),
-                  )),
-              const SizedBox(height: 16),
-              CupertinoButton(
-                child: const Text('Close'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-        ),
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => WorkoutDetailsView(workout: workout),
       ),
     );
   }
