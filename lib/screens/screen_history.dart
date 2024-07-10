@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
 import '../widgets/sliver_layout.dart';
 import '../models/workout_model.dart';
-import '../services/db_helpers.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -40,39 +39,89 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Widget _buildWorkoutItem(BuildContext context, CompletedWorkout workout) {
-    return GestureDetector(
-      onTap: () => _showWorkoutDetails(context, workout),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: CupertinoColors.separator)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Dismissible(
+      key: Key(workout.id.toString()),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20.0),
+        color: CupertinoColors.destructiveRed,
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Workout on ${_formatDate(workout.date)}',
-                  style: CupertinoTheme.of(context)
-                      .textTheme
-                      .textStyle
-                      .copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Duration: ${_formatDuration(workout.durationInSeconds)}',
-                  style: CupertinoTheme.of(context)
-                      .textTheme
-                      .textStyle
-                      .copyWith(color: CupertinoColors.secondaryLabel),
-                ),
-              ],
+            Icon(
+              CupertinoIcons.trash,
+              color: CupertinoColors.white,
             ),
-            const Icon(CupertinoIcons.right_chevron,
-                color: CupertinoColors.secondaryLabel),
+            SizedBox(width: 5),
+            Text(
+              'Delete',
+              style: TextStyle(color: CupertinoColors.white),
+            ),
           ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        return await showCupertinoDialog(
+          context: context,
+          builder: (BuildContext context) => CupertinoAlertDialog(
+            title: const Text("Delete Workout"),
+            content:
+                const Text('Are you sure you want to delete this workout?'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                isDestructiveAction: true,
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              )
+            ],
+          ),
+        );
+      },
+      onDismissed: (direction) {
+        Provider.of<HistoryProvider>(context, listen: false)
+            .deleteCompletedWorkout(workout.id!);
+      },
+      child: GestureDetector(
+        onTap: () => _showWorkoutDetails(context, workout),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            border:
+                Border(bottom: BorderSide(color: CupertinoColors.separator)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workout on ${_formatDate(workout.date)}',
+                    style: CupertinoTheme.of(context)
+                        .textTheme
+                        .textStyle
+                        .copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Duration: ${_formatDuration(workout.durationInSeconds)}',
+                    style: CupertinoTheme.of(context)
+                        .textTheme
+                        .textStyle
+                        .copyWith(color: CupertinoColors.secondaryLabel),
+                  ),
+                ],
+              ),
+              const Icon(CupertinoIcons.right_chevron,
+                  color: CupertinoColors.secondaryLabel),
+            ],
+          ),
         ),
       ),
     );

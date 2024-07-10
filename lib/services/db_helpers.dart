@@ -121,6 +121,15 @@ class DatabaseHelper {
     });
   }
 
+  Future<int> deleteCompletedWorkout(int id) async {
+    final db = await database;
+    return await db.delete(
+      'completed_workouts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<CompletedWorkout?> getCompletedWorkout(int id) async {
     final db = await database;
     final workoutMaps = await db.query(

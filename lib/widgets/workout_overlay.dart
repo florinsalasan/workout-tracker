@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/models/workout_model.dart';
-import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import '../providers/history_provider.dart';
@@ -30,10 +30,11 @@ class WorkoutState extends ChangeNotifier {
 
   Future<void> endWorkout(BuildContext context) async {
     if (_workoutStartTime == null) {
-      print("Something went wrong with start time of the workout");
+      if (kDebugMode) {
+        print("Something went wrong with start time of the workout");
+      }
       return;
     }
-    final dbHelper = DatabaseHelper.instance;
 
     final now = DateTime.now();
     final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
@@ -61,7 +62,9 @@ class WorkoutState extends ChangeNotifier {
 
       // Verify the save by retrieving the workout
     } catch (e) {
-      print("Error saving workout: $e");
+      if (kDebugMode) {
+        print("Error saving workout: $e");
+      }
     }
     cancelWorkout();
   }

@@ -70,18 +70,19 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 20.0),
                   color: CupertinoColors.destructiveRed,
                   child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(
-                          CupertinoIcons.trash,
-                          color: CupertinoColors.white,
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          'Delete',
-                          style: TextStyle(color: CupertinoColors.white),
-                        ),
-                      ]),
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        CupertinoIcons.trash,
+                        color: CupertinoColors.white,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'Delete',
+                        style: TextStyle(color: CupertinoColors.white),
+                      ),
+                    ],
+                  ),
                 ),
                 child: SetTrackingWidget(
                   key: ValueKey('$exerciseIndex-$setIndex'),
