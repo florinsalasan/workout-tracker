@@ -41,19 +41,18 @@ class WorkoutState extends ChangeNotifier {
         date: now,
         exercises: _exercises
             .map((exercise) => CompletedExercise(
-                  workoutId: 0,
+                  workoutId: null,
                   name: exercise.name,
                   sets: exercise.sets
                       .map((set) => CompletedSet(
-                          exerciseId: 0, reps: set.reps, weight: set.weight))
+                          exerciseId: null, reps: set.reps, weight: set.weight))
                       .toList(),
                 ))
             .toList(),
         durationInSeconds: durationInSeconds);
 
-    await dbHelper.insertCompletedWorkout(completedWorkout);
+    final id = await dbHelper.insertCompletedWorkout(completedWorkout);
     try {
-      final id = await dbHelper.insertCompletedWorkout(completedWorkout);
       print("Workout saved with ID: $id");
 
       // Verify the save by retrieving the workout

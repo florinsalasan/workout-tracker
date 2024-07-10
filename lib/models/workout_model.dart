@@ -31,7 +31,7 @@ class CompletedWorkout {
 
 class CompletedExercise {
   final int? id;
-  final int workoutId;
+  final int? workoutId;
   final String name;
   List<CompletedSet> sets;
 
@@ -62,7 +62,7 @@ class CompletedExercise {
 
 class CompletedSet {
   final int? id;
-  final int exerciseId;
+  final int? exerciseId;
   final int reps;
   final double weight;
 
