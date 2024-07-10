@@ -1,46 +1,39 @@
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+import 'package:workout_tracker/providers/history_provider.dart';
 import '../widgets/sliver_layout.dart';
 import '../models/workout_model.dart';
 import '../services/db_helpers.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
-
-  @override
-  HistoryScreenState createState() => HistoryScreenState();
-}
-
-class HistoryScreenState extends State<HistoryScreen> {
-  late Future<List<CompletedWorkout>> _workoutsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _workoutsFuture = DatabaseHelper.instance.getAllCompletedWorkouts();
-  }
 
   @override
   Widget build(BuildContext context) {
     return CustomLayout(
       title: 'History',
-      body: FutureBuilder<List<CompletedWorkout>>(
-        future: _workoutsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CupertinoActivityIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No workouts found'));
-          } else {
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final workout = snapshot.data![index];
-                return _buildWorkoutItem(context, workout);
-              },
-            );
-          }
+      body: Consumer<HistoryProvider>(
+        builder: (context, historyProvider, child) {
+          return FutureBuilder<List<CompletedWorkout>>(
+            future: historyProvider.getCompletedWorkouts(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CupertinoActivityIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No workouts found'));
+              } else {
+                return ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    final workout = snapshot.data![index];
+                    return _buildWorkoutItem(context, workout);
+                  },
+                );
+              }
+            },
+          );
         },
       ),
     );
