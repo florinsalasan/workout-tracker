@@ -29,14 +29,16 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late FocusNode _weightFocusNode;
   late FocusNode _repsFocusNode;
   bool _isInitialized = false;
+  double _localWeight = 0;
+  int _localReps = 0;
 
   @override
   void initState() {
     super.initState();
-    _weightController =
-        TextEditingController(text: widget.initialWeight.toString());
-    _repsController =
-        TextEditingController(text: widget.initialReps.toString());
+    _localWeight = widget.initialWeight;
+    _localReps = widget.initialReps;
+    _weightController = TextEditingController(text: _localWeight.toString());
+    _repsController = TextEditingController(text: _localReps.toString());
     _weightFocusNode = FocusNode();
     _repsFocusNode = FocusNode();
 
@@ -53,7 +55,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         extentOffset: _weightController.text.length,
       );
     } else {
-      _updateWorkoutState(context);
+      _updateWorkoutState();
     }
   }
 
@@ -64,7 +66,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         extentOffset: _repsController.text.length,
       );
     } else {
-      _updateWorkoutState(context);
+      _updateWorkoutState();
     }
   }
 
@@ -75,104 +77,122 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
     if (widget.initialWeight != oldWidget.initialWeight &&
         !_weightFocusNode.hasFocus) {
-      _weightController.text = widget.initialWeight.toString();
+      _localWeight = widget.initialWeight;
+      _weightController.text = _localWeight.toString();
     }
     if (widget.initialReps != oldWidget.initialReps &&
         !_repsFocusNode.hasFocus) {
-      _repsController.text = widget.initialReps.toString();
+      _localReps = widget.initialReps;
+      _repsController.text = _localReps.toString();
     }
   }
 
-  void _updateWorkoutState(BuildContext context) {
+  void _updateWorkoutState() {
     if (!_isInitialized) return;
 
-    final workoutState = context.read<WorkoutState>();
-    workoutState.updateSet(
-      widget.exerciseIndex,
-      widget.setIndex,
-      double.tryParse(_weightController.text) ?? 0,
-      int.tryParse(_repsController.text) ?? 0,
-      widget.isCompleted,
-    );
+    final newWeight = double.tryParse(_weightController.text) ?? 0;
+    final newReps = int.tryParse(_repsController.text) ?? 0;
+
+    if (newWeight != _localWeight || newReps != _localReps) {
+      _localWeight = newWeight;
+      _localReps = newReps;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<WorkoutState>().updateSet(
+                widget.exerciseIndex,
+                widget.setIndex,
+                _localWeight,
+                _localReps,
+                widget.isCompleted,
+              );
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<WorkoutState>(
-      builder: (context, workoutState, child) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 30,
-                child: Text(
-                  '${widget.setIndex + 1}',
-                  style: CupertinoTheme.of(context).textTheme.textStyle,
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  '',
-                  style:
-                      CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                            color: CupertinoColors.systemGrey,
-                          ),
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: CupertinoTextField(
-                  controller: _weightController,
-                  focusNode: _weightFocusNode,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  placeholder: 'Weight',
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,2}$')),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: CupertinoTextField(
-                  controller: _repsController,
-                  focusNode: _repsFocusNode,
-                  keyboardType: TextInputType.number,
-                  placeholder: 'Reps',
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: Icon(
-                  widget.isCompleted
-                      ? CupertinoIcons.check_mark_circled_solid
-                      : CupertinoIcons.circle,
-                  color: widget.isCompleted
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.systemGrey,
-                ),
-                onPressed: () {
-                  workoutState.updateSet(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 30,
+            child: Text(
+              '${widget.setIndex + 1}',
+              style: CupertinoTheme.of(context).textTheme.textStyle,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              '',
+              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                    color: CupertinoColors.systemGrey,
+                  ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: CupertinoTextField(
+              textAlign: TextAlign.center,
+              controller: _weightController,
+              focusNode: _weightFocusNode,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              placeholder: 'Weight',
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
+              ],
+              onChanged: (value) {
+                _localWeight = double.tryParse(value) ?? 0;
+              },
+              onEditingComplete: _updateWorkoutState,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 1,
+            child: CupertinoTextField(
+              textAlign: TextAlign.center,
+              controller: _repsController,
+              focusNode: _repsFocusNode,
+              keyboardType: TextInputType.number,
+              placeholder: 'Reps',
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+              onChanged: (value) {
+                _localReps = int.tryParse(value) ?? 0;
+              },
+              onEditingComplete: _updateWorkoutState,
+            ),
+          ),
+          const SizedBox(width: 8),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: Icon(
+              widget.isCompleted
+                  ? CupertinoIcons.check_mark_circled_solid
+                  : CupertinoIcons.circle,
+              color: widget.isCompleted
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.systemGrey,
+            ),
+            onPressed: () {
+              _updateWorkoutState();
+              context.read<WorkoutState>().updateSet(
                     widget.exerciseIndex,
                     widget.setIndex,
-                    double.tryParse(_weightController.text) ?? 0,
-                    int.tryParse(_repsController.text) ?? 0,
+                    _localWeight,
+                    _localReps,
                     !widget.isCompleted,
                   );
-                },
-              )
-            ],
-          ),
-        );
-      },
+            },
+          )
+        ],
+      ),
     );
   }
 
