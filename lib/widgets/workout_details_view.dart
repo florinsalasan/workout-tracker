@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import '../services/date_time_utils.dart';
 
@@ -34,7 +33,7 @@ class WorkoutDetailsView extends StatelessWidget {
         Text(
           formatDate(workout),
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -46,11 +45,6 @@ class WorkoutDetailsView extends StatelessWidget {
             color: CupertinoColors.secondaryLabel,
           ),
         ),
-        // SizedBox(height: 8),
-        // Text(
-        //   '${workout.exercises.length} exercises completed',
-        //   style: TextStyle(fontSize: 18, color: CupertinoColors.secondaryLabel),
-        // ),
       ],
     );
   }
