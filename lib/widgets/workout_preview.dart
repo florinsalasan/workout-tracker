@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 
 import '../models/workout_model.dart';
 import '../services/date_time_utils.dart';
@@ -35,7 +34,7 @@ class WorkoutPreview extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  DateFormat("MMMM d, y").format(workout.date),
+                  formatDate(workout),
                   style:
                       CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                             fontWeight: FontWeight.bold,

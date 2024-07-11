@@ -32,7 +32,7 @@ class WorkoutDetailsView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          DateFormat('MMMM d, y').format(workout.date),
+          formatDate(workout),
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
