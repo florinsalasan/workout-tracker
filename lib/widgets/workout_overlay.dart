@@ -53,8 +53,6 @@ class WorkoutState extends ChangeNotifier {
             .toList(),
         durationInSeconds: durationInSeconds);
 
-    // final id = await dbHelper.insertCompletedWorkout(completedWorkout);
-
     try {
       final historyProvider =
           Provider.of<HistoryProvider>(context, listen: false);
@@ -123,8 +121,10 @@ class WorkoutState extends ChangeNotifier {
       bool isCompleted) {
     if (exerciseIndex < _exercises.length &&
         setIndex < exercises[exerciseIndex].sets.length) {
-      _exercises[exerciseIndex].sets[setIndex] =
-          ExerciseSet(weight: weight, reps: reps, isCompleted: isCompleted);
+      final set = _exercises[exerciseIndex].sets[setIndex];
+      set.weight = weight;
+      set.reps = reps;
+      set.isCompleted = isCompleted;
       notifyListeners();
     }
   }

@@ -11,13 +11,13 @@ class SetTrackingWidget extends StatefulWidget {
   final bool isCompleted;
 
   const SetTrackingWidget({
-    super.key,
+    Key? key,
     required this.exerciseIndex,
     required this.setIndex,
     required this.initialWeight,
     required this.initialReps,
     required this.isCompleted,
-  });
+  }) : super(key: key);
 
   @override
   SetTrackingWidgetState createState() => SetTrackingWidgetState();
@@ -28,6 +28,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _repsController;
   late FocusNode _weightFocusNode;
   late FocusNode _repsFocusNode;
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -41,6 +42,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
     _weightFocusNode.addListener(_handleWeightFocusChange);
     _repsFocusNode.addListener(_handleRepsFocusChange);
+
+    _isInitialized = true;
   }
 
   void _handleWeightFocusChange() {
@@ -50,7 +53,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         extentOffset: _weightController.text.length,
       );
     } else {
-      _updateSet(context);
+      _updateWorkoutState(context);
     }
   }
 
@@ -61,27 +64,42 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         extentOffset: _repsController.text.length,
       );
     } else {
-      _updateSet(context);
+      _updateWorkoutState(context);
     }
   }
 
   @override
-  void dispose() {
-    _weightController.dispose();
-    _repsController.dispose();
-    _weightFocusNode.removeListener(_handleWeightFocusChange);
-    _repsFocusNode.removeListener(_handleRepsFocusChange);
-    _weightFocusNode.dispose();
-    _repsFocusNode.dispose();
-    super.dispose();
+  void didUpdateWidget(SetTrackingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isInitialized) return;
+
+    if (widget.initialWeight != oldWidget.initialWeight &&
+        !_weightFocusNode.hasFocus) {
+      _weightController.text = widget.initialWeight.toString();
+    }
+    if (widget.initialReps != oldWidget.initialReps &&
+        !_repsFocusNode.hasFocus) {
+      _repsController.text = widget.initialReps.toString();
+    }
+  }
+
+  void _updateWorkoutState(BuildContext context) {
+    if (!_isInitialized) return;
+
+    final workoutState = context.read<WorkoutState>();
+    workoutState.updateSet(
+      widget.exerciseIndex,
+      widget.setIndex,
+      double.tryParse(_weightController.text) ?? 0,
+      int.tryParse(_repsController.text) ?? 0,
+      widget.isCompleted,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
-        final exercise = workoutState.exercises[widget.exerciseIndex];
-        final set = exercise.sets[widget.setIndex];
         return Padding(
           padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
           child: Row(
@@ -96,7 +114,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               Expanded(
                 flex: 2,
                 child: Text(
-                  // '${widget.initialWeight} x ${widget.initialReps}',
                   '',
                   style:
                       CupertinoTheme.of(context).textTheme.textStyle.copyWith(
@@ -118,9 +135,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   ],
                 ),
               ),
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
               Expanded(
                 flex: 2,
                 child: CupertinoTextField(
@@ -135,20 +150,25 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               ),
               const SizedBox(width: 8),
               CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: Icon(
-                    set.isCompleted
-                        ? CupertinoIcons.check_mark_circled_solid
-                        : CupertinoIcons.circle,
-                    color: set.isCompleted
-                        ? CupertinoColors.activeBlue
-                        : CupertinoColors.systemGrey,
-                  ),
-                  onPressed: () {
-                    final newIsCompleted = !set.isCompleted;
-                    workoutState.updateSet(widget.exerciseIndex,
-                        widget.setIndex, set.weight, set.reps, newIsCompleted);
-                  })
+                padding: EdgeInsets.zero,
+                child: Icon(
+                  widget.isCompleted
+                      ? CupertinoIcons.check_mark_circled_solid
+                      : CupertinoIcons.circle,
+                  color: widget.isCompleted
+                      ? CupertinoColors.activeBlue
+                      : CupertinoColors.systemGrey,
+                ),
+                onPressed: () {
+                  workoutState.updateSet(
+                    widget.exerciseIndex,
+                    widget.setIndex,
+                    double.tryParse(_weightController.text) ?? 0,
+                    int.tryParse(_repsController.text) ?? 0,
+                    !widget.isCompleted,
+                  );
+                },
+              )
             ],
           ),
         );
@@ -156,13 +176,14 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
     );
   }
 
-  void _updateSet(BuildContext context) {
-    final workoutState = context.read<WorkoutState>();
-    final exercise = workoutState.exercises[widget.exerciseIndex];
-    final set = exercise.sets[widget.setIndex];
-    final weight = double.tryParse(_weightController.text) ?? set.weight;
-    final reps = int.tryParse(_repsController.text) ?? set.reps;
-    workoutState.updateSet(
-        widget.exerciseIndex, widget.setIndex, weight, reps, set.isCompleted);
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _repsController.dispose();
+    _weightFocusNode.removeListener(_handleWeightFocusChange);
+    _repsFocusNode.removeListener(_handleRepsFocusChange);
+    _weightFocusNode.dispose();
+    _repsFocusNode.dispose();
+    super.dispose();
   }
 }
