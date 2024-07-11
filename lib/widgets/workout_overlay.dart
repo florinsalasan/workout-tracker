@@ -117,16 +117,25 @@ class WorkoutState extends ChangeNotifier {
     }
   }
 
-  void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
-      bool isCompleted) {
+  void updateSetWithoutNotify(int exerciseIndex, int setIndex, double weight,
+      int reps, bool isCompleted) {
     if (exerciseIndex < _exercises.length &&
-        setIndex < exercises[exerciseIndex].sets.length) {
+        setIndex < _exercises[exerciseIndex].sets.length) {
       final set = _exercises[exerciseIndex].sets[setIndex];
       set.weight = weight;
       set.reps = reps;
       set.isCompleted = isCompleted;
-      notifyListeners();
     }
+  }
+
+  void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
+      bool isCompleted) {
+    updateSetWithoutNotify(exerciseIndex, setIndex, weight, reps, isCompleted);
+    notifyListeners();
+  }
+
+  ExerciseSet getSet(int exerciseIndex, int setIndex) {
+    return _exercises[exerciseIndex].sets[setIndex];
   }
 }
 
