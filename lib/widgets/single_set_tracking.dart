@@ -150,7 +150,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),
-              SizedBox(width: 20),
+              const SizedBox(width: 20),
               SizedBox(
                 width: 44,
                 child: CupertinoButton(

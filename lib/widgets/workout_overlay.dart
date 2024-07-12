@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/models/workout_model.dart';
+import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import '../providers/history_provider.dart';
@@ -90,8 +91,19 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addExercise(String exerciseName) {
-    _exercises.add(Exercise(name: exerciseName));
+  void addExercise(String exerciseName, BuildContext context) async {
+    final dbHelper = DatabaseHelper.instance;
+    final lastSets = await dbHelper.getLastCompletedSets(exerciseName);
+
+    final exercise = Exercise(name: exerciseName);
+    if (lastSets.isEmpty) {
+      exercise.addSet(0, 0);
+    } else {
+      for (var set in lastSets) {
+        exercise.addSet(set.weight, set.reps);
+      }
+    }
+    _exercises.add(exercise);
     notifyListeners();
   }
 
@@ -262,7 +274,13 @@ class WorkoutOverlay extends StatelessWidget {
               ),
             );
             if (result != null) {
-              workoutState.addExercise(result);
+              if (!context.mounted) {
+                print(
+                    'context did not mount when adding a new exercise try again');
+                Error();
+              } else {
+                workoutState.addExercise(result, context);
+              }
             }
           },
           child: const Text("Add Exercise"),

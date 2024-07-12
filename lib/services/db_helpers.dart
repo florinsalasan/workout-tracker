@@ -256,6 +256,26 @@ class DatabaseHelper {
     }));
   }
 
+  Future<List<CompletedSet>> getLastCompletedSets(String exerciseName) async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT cs.*
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exerciseId = ce.id
+      JOIN completed_workouts cw ON ce.workoutId = cw.id
+      WHERE ce.name = ? AND cw.id = (
+        SELECT MAX(cw2.id)
+        FROM completed_workouts cw2
+        JOIN completed_exercises ce2 ON cw2.id = ce2.workoutId
+        WHERE ce2.name = ?
+      )
+      ORDER BY cs.id 
+    ''', [exerciseName, exerciseName]);
+
+    print(results.length);
+    return results.map((map) => CompletedSet.fromMap(map)).toList();
+  }
+
   Future<void> insertPersonalBest(PersonalBest pb) async {
     final db = await database;
     await db.insert('personal_bests', pb.toMap());
