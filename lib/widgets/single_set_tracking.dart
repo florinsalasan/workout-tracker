@@ -92,15 +92,32 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         }
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(26.0, 4.0, 16.0, 0),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16.0,
+            vertical: 2.0,
+          ),
           child: Row(
             children: [
               SizedBox(
-                width: 30,
+                width: 25,
                 child: Text(
                   '${widget.setIndex + 1}',
                   style: CupertinoTheme.of(context).textTheme.textStyle,
+                  textAlign: TextAlign.center,
                 ),
+              ),
+              const SizedBox(
+                width: 35,
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  "W x R",
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(
+                width: 40,
               ),
               Expanded(
                 flex: 2,
@@ -114,10 +131,11 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^\d*\.?\d{0,2}$')),
                   ],
+                  textAlign: TextAlign.center,
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 20),
               Expanded(
                 flex: 2,
                 child: CupertinoTextField(
@@ -128,30 +146,34 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                   ],
+                  textAlign: TextAlign.center,
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),
-              const SizedBox(width: 8),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: Icon(
-                  currentSet.isCompleted
-                      ? CupertinoIcons.check_mark_circled_solid
-                      : CupertinoIcons.circle,
-                  color: currentSet.isCompleted
-                      ? CupertinoColors.activeBlue
-                      : CupertinoColors.systemGrey,
+              SizedBox(width: 20),
+              SizedBox(
+                width: 44,
+                child: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    currentSet.isCompleted
+                        ? CupertinoIcons.check_mark_circled_solid
+                        : CupertinoIcons.circle,
+                    color: currentSet.isCompleted
+                        ? CupertinoColors.activeBlue
+                        : CupertinoColors.systemGrey,
+                  ),
+                  onPressed: () {
+                    workoutState.updateSet(
+                      widget.exerciseIndex,
+                      widget.setIndex,
+                      double.tryParse(_weightController.text) ?? 0,
+                      int.tryParse(_repsController.text) ?? 0,
+                      !currentSet.isCompleted,
+                    );
+                  },
                 ),
-                onPressed: () {
-                  workoutState.updateSet(
-                    widget.exerciseIndex,
-                    widget.setIndex,
-                    double.tryParse(_weightController.text) ?? 0,
-                    int.tryParse(_repsController.text) ?? 0,
-                    !currentSet.isCompleted,
-                  );
-                },
-              )
+              ),
             ],
           ),
         );
