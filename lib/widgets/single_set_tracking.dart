@@ -11,13 +11,13 @@ class SetTrackingWidget extends StatefulWidget {
   final bool isCompleted;
 
   const SetTrackingWidget({
-    Key? key,
+    super.key,
     required this.exerciseIndex,
     required this.setIndex,
     required this.initialWeight,
     required this.initialReps,
     required this.isCompleted,
-  }) : super(key: key);
+  });
 
   @override
   SetTrackingWidgetState createState() => SetTrackingWidgetState();

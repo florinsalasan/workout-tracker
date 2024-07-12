@@ -17,7 +17,8 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(path,
+        version: 2, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -67,6 +68,67 @@ class DatabaseHelper {
       FOREIGN KEY (exerciseId) REFERENCES completed_exercises (id) ON DELETE CASCADE
     )
     ''');
+
+    await db.execute('''
+    CREATE TABLE personal_bests(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exerciseId INTEGER NOT NULL,
+      reps INTEGER NOT NULL,
+      weight REAL NOT NULL,
+      date TEXT NOT NULL,
+      FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE exercise_tags(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE exercise_tag_relations(
+      exerciseId INTEGER NOT NULL, 
+      tagId INTEGER NOT NULL,
+      PRIMARY KEY (exerciseId, tagId),
+      FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE,
+      FOREIGN KEY (tagId) REFERENCES exercise_tags (id) ON DELETE CASCADE,
+      )
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add new tables for version 2
+      await db.execute('''
+      CREATE TABLE personal_bests(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        exerciseId INTEGER NOT NULL,
+        reps INTEGER NOT NULL,
+        weight REAL NOT NULL,
+        date TEXT NOT NULL,
+        FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE exercise_tags(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE exercise_tag_relations(
+        exerciseId INTEGER NOT NULL,
+        tagId INTEGER NOT NULL,
+        PRIMARY KEY (exerciseId, tagId),
+        FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE,
+        FOREIGN KEY (tagId) REFERENCES exercise_tags (id) ON DELETE CASCADE
+      )
+      ''');
+    }
   }
 
   Future<int> insertExercise(Exercise exercise) async {
@@ -193,6 +255,66 @@ class DatabaseHelper {
       return workout;
     }));
   }
+
+  Future<void> insertPersonalBest(PersonalBest pb) async {
+    final db = await database;
+    await db.insert('personal_bests', pb.toMap());
+  }
+
+  Future<List<PersonalBest>> getPersonalBests(int exerciseId) async {
+    final db = await database;
+    final results = await db.query(
+      'personal_bests',
+      where: 'exerciseId = ?',
+      whereArgs: [exerciseId],
+      orderBy: 'reps ASC',
+    );
+    return results.map((map) => PersonalBest.fromMap(map)).toList();
+  }
+
+  Future<void> updatePersonalBest(PersonalBest pb) async {
+    final db = await database;
+    await db.update(
+      'personal_bests',
+      pb.toMap(),
+      where: 'id = ?',
+      whereArgs: [pb.id],
+    );
+  }
+
+  Future<void> insertTag(String tagName) async {
+    final db = await database;
+    await db.insert('exercise_tags', {'name': tagName});
+  }
+
+  Future<void> addTagToExercise(int exerciseId, int tagId) async {
+    final db = await database;
+    await db.insert('exercise_tag_relations', {
+      'exerciseId': exerciseId,
+      'tagId': tagId,
+    });
+  }
+
+  Future<List<String>> getExerciseTags(int exerciseId) async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT et.name
+      FROM exercise_tags et
+      JOIN exercise_tag_relations etr ON et.id = etr.tagId
+      WHERE etr.exerciseId = ?
+    ''', [exerciseId]);
+    return results.map((map) => map['name'] as String).toList();
+  }
+
+  Future<List<String>> getAllTags() async {
+    final db = await database;
+    final results = await db.query(
+      'exercise_tags',
+      columns: ['name'],
+      distinct: true,
+    );
+    return results.map((map) => map['name'] as String).toList();
+  }
 }
 
 class Exercise {
@@ -215,6 +337,46 @@ class Exercise {
       id: map['id'],
       name: map['name'],
       isCustom: map['isCustom'] == 1,
+    );
+  }
+}
+
+class PersonalBest {
+  final int? id;
+  final int exerciseId;
+  int workoutId;
+  int reps;
+  double weight;
+  String date;
+
+  PersonalBest({
+    this.id,
+    required this.exerciseId,
+    required this.workoutId,
+    required this.reps,
+    required this.weight,
+    required this.date,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'exerciseId': exerciseId,
+      'workoutId': workoutId,
+      'reps': reps,
+      'weight': weight,
+      'date': date,
+    };
+  }
+
+  static PersonalBest fromMap(Map<String, dynamic> map) {
+    return PersonalBest(
+      id: map['id'],
+      exerciseId: map['exerciseId'],
+      workoutId: map['workoutId'],
+      reps: map['reps'],
+      weight: map['weight'],
+      date: map['date'],
     );
   }
 }
