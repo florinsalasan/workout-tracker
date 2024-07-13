@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/exercise_provider.dart';
+import 'package:workout_tracker/widgets/exercise_preview.dart';
 
 import '../widgets/sliver_layout.dart';
 import 'package:flutter/cupertino.dart';
@@ -82,18 +83,9 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                   itemCount: exerciseProvider.exercises.length,
                   itemBuilder: (context, index) {
                     final exercise = exerciseProvider.exercises[index];
-                    return CupertinoListTile(
-                      title: Text(exercise.name),
-                      trailing: exercise.isCustom
-                          ? CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              onPressed: () async {
-                                await exerciseProvider
-                                    .deleteExercise(exercise.id!);
-                              },
-                              child: const Icon(CupertinoIcons.delete),
-                            )
-                          : null,
+                    return ExercisePreview(
+                      exercise: exercise,
+                      onTap: () => print('handle this eventually'),
                     );
                   },
                 ),
