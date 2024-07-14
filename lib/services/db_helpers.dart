@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/workout_model.dart';
@@ -279,6 +281,12 @@ class DatabaseHelper {
   Future<void> insertPersonalBest(PersonalBest pb) async {
     final db = await database;
     await db.insert('personal_bests', pb.toMap());
+  }
+
+  Future<List<PersonalBest>> getAllPersonalBests() async {
+    final db = await database;
+    final results = await db.query('personal_bests');
+    return results.map((map) => PersonalBest.fromMap(map)).toList();
   }
 
   Future<List<PersonalBest>> getPersonalBests(int exerciseId) async {

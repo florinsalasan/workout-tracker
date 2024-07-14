@@ -1,6 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
-import '../providers/exercise_provider.dart';
 import '../services/db_helpers.dart';
 
 class ExercisePreview extends StatelessWidget {

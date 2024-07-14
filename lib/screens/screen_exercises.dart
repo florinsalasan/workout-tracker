@@ -15,17 +15,26 @@ class ExercisesScreen extends StatefulWidget {
 
 class ExercisesScreenState extends State<ExercisesScreen> {
   List<Exercise> exercises = [];
+  List<PersonalBest> allPersonalBests = [];
 
   @override
   void initState() {
     super.initState();
     _loadExercises();
+    _loadAllPersonalBests();
   }
 
   Future<void> _loadExercises() async {
     final loadedExercises = await DatabaseHelper.instance.getAllExercises();
     setState(() {
       exercises = loadedExercises;
+    });
+  }
+
+  Future<void> _loadAllPersonalBests() async {
+    final pbs = await DatabaseHelper.instance.getAllPersonalBests();
+    setState(() {
+      allPersonalBests = pbs;
     });
   }
 
@@ -89,6 +98,10 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                     );
                   },
                 ),
+              ),
+              Text("Number of pbs: ${allPersonalBests.length}"),
+              Expanded(
+                child: Text("${allPersonalBests}"),
               ),
             ],
           );
