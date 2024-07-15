@@ -62,39 +62,4 @@ class ExerciseProvider with ChangeNotifier {
   Future<List<String>> getAllTags() async {
     return await _dbHelper.getAllTags();
   }
-
-  Future<void> checkAndUpdatePersonalBest(
-    int exerciseId,
-    int reps,
-    double weight,
-    String date,
-    int workoutId,
-  ) async {
-    List<PersonalBest?> pbs = await getPersonalBests(exerciseId);
-    PersonalBest? existingPB = pbs.firstWhere(
-      (pb) => pb?.reps == reps,
-      orElse: () => null,
-    );
-
-    if (existingPB != null) {
-      if (weight > existingPB.weight) {
-        // Update existing PB
-        existingPB.weight = weight;
-        existingPB.date = date;
-        existingPB.workoutId = workoutId;
-        await updatePersonalBest(existingPB);
-      }
-    } else {
-      // Add new PB
-      PersonalBest newPB = PersonalBest(
-        exerciseId: exerciseId,
-        reps: reps,
-        weight: weight,
-        date: date,
-        workoutId: workoutId,
-      );
-      await addPersonalBest(newPB);
-    }
-    notifyListeners();
-  }
 }
