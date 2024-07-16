@@ -331,86 +331,106 @@ class DatabaseHelper {
   Future<void> checkAndUpdatePersonalBests(int workoutId) async {
     final db = await database;
 
-    final exercises = await db.query(
-      'completed_exercises',
-      where: 'workoutId = ?',
-      whereArgs: [workoutId],
-    );
-
-    for (final exercise in exercises) {
-      final exerciseId = exercise['id'] as int;
-      final exerciseName = exercise['name'] as String;
-
-      final baseExerciseResult = await db.query(
-        'exercises',
-        columns: ['id'],
-        where: 'name = ?',
-        whereArgs: [exerciseName],
-        limit: 1,
+    await db.transaction((txn) async {
+      final exercises = await txn.query(
+        'completed_exercises',
+        where: 'workoutId = ?',
+        whereArgs: [workoutId],
       );
 
-      if (baseExerciseResult.isEmpty) {
-        print('Warning: no base exercise found for $exerciseName');
-        continue;
+      for (final exercise in exercises) {
+        final exerciseId = exercise['id'] as int;
+        final exerciseName = exercise['name'] as String;
+
+        final baseExerciseResult = await txn.query(
+          'exercises',
+          columns: ['id'],
+          where: 'name = ?',
+          whereArgs: [exerciseName],
+          limit: 1,
+        );
+
+        if (baseExerciseResult.isEmpty) {
+          print('Warning: no base exercise found for $exerciseName');
+          continue;
+        }
+
+        final baseExerciseId = baseExerciseResult.first['id'] as int;
+
+        final sets = await txn.query(
+          'completed_sets',
+          where: 'exerciseId = ?',
+          whereArgs: [exerciseId],
+        );
+
+        for (final set in sets) {
+          final reps = set['reps'] as int;
+          final weight = (set['weight'] as num).toDouble();
+
+          final existingPBs = await txn.query(
+            'personal_bests',
+            where: 'exerciseId = ? AND reps <= ? AND type = ?',
+            whereArgs: [baseExerciseId, reps, 'rep_based'],
+            orderBy: 'reps DESC',
+          );
+
+          // check if any rep range pb can be updated
+          for (int i = reps; i > 0; i--) {
+            final existingPB = existingPBs.firstWhere(
+              (pb) => pb['reps'] == i,
+              orElse: () => {'weight': 0.0},
+            );
+
+            if (weight > (existingPB['weight'] as num).toDouble()) {
+              await txn.insert(
+                'personal_bests',
+                {
+                  'exerciseId': baseExerciseId,
+                  'reps': i,
+                  'weight': weight,
+                  'date': DateTime.now().toIso8601String(),
+                  'type': 'rep_based',
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            } else {
+              // hopefully breaks for loop once a smaller rep range is no longer a pb
+              // since any other reps will be as large or larger than the value we are
+              // trying to update to.
+              print('reps that do not qualify: $i');
+              break;
+            }
+          }
+        }
+
+        // set overall weight x reps pb if possible
+        if (sets.isNotEmpty) {
+          final totalWeightSet = sets.reduce((currentSet, nextSet) {
+            final currentTotalWeight =
+                (currentSet['reps'] as int) * (currentSet['weight'] as double);
+            final nextTotalWeight =
+                (nextSet['reps'] as int) * (nextSet['weight'] as double);
+            return currentTotalWeight > nextTotalWeight ? currentSet : nextSet;
+          });
+
+          final totalWeight = (totalWeightSet['reps'] as int) *
+              (totalWeightSet['weight'] as double);
+
+          await txn.insert(
+            'personal_bests',
+            {
+              'exerciseId': baseExerciseId,
+              'reps': totalWeightSet['reps'],
+              'weight': totalWeightSet['weight'],
+              'date': DateTime.now().toIso8601String(),
+              'type': 'overall_weight',
+              'total_weight': totalWeight,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
       }
-
-      final baseExerciseId = baseExerciseResult.first['id'] as int;
-
-      final sets = await db.query(
-        'completed_sets',
-        where: 'exerciseId = ?',
-        whereArgs: [exerciseId],
-      );
-
-      for (final set in sets) {
-        final reps = set['reps'] as int;
-        final weight = (set['weight'] as num).toDouble();
-
-        await db.rawInsert('''
-          INSERT OR REPLACE INTO personal_bests (exerciseId, reps, weight, date, type)
-          VALUES (?, ?, ?, ?, ?)
-          ON CONFLICT(exerciseId, reps, type) DO UPDATE SET
-            weight = CASE WHEN excluded.weight > weight THEN excluded.weight ELSE weight END,
-            date = CASE WHEN excluded.weight > weight THEN excluded.date ELSE date END
-        ''', [
-          baseExerciseId,
-          reps,
-          weight,
-          DateTime.now().toIso8601String(),
-          'rep_based'
-        ]);
-      }
-
-      if (sets.isNotEmpty) {
-        final totalWeightSet = sets.reduce((currentSet, nextSet) {
-          final currentTotalWeight =
-              (currentSet['reps'] as int) * (currentSet['weight'] as double);
-          final nextTotalWeight =
-              (nextSet['reps'] as int) * (nextSet['weight'] as double);
-          return currentTotalWeight > nextTotalWeight ? currentSet : nextSet;
-        });
-
-        final totalWeight = (totalWeightSet['reps'] as int) *
-            (totalWeightSet['weight'] as double);
-
-        await db.rawInsert('''
-        INSERT OR REPLACE INTO personal_bests (exerciseId, reps, weight, date, type, total_weight)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(exerciseId, reps, type) DO UPDATE SET
-          reps = CASE WHEN excluded.total_weight > total_weight THEN excluded.reps ELSE reps END,
-          weight = CASE WHEN excluded.total_weight > total_weight THEN excluded.weight ELSE weight END,
-          date = CASE WHEN excluded.total_weight > total_weight THEN excluded.date ELSE date END,
-          total_weight = CASE WHEN excluded.total_weight > total_weight THEN excluded.total_weight ELSE total_weight END
-      ''', [
-          baseExerciseId,
-          totalWeightSet['reps'],
-          totalWeightSet['weight'],
-          DateTime.now().toIso8601String(),
-          'overall_weight',
-          totalWeight
-        ]);
-      }
-    }
+    });
   }
 }
 
