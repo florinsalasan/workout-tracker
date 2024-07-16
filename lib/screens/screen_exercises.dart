@@ -35,6 +35,7 @@ class ExercisesScreenState extends State<ExercisesScreen> {
     final pbs = await DatabaseHelper.instance.getAllPersonalBests();
     setState(() {
       allPersonalBests = pbs;
+      print(pbs.first.date);
     });
   }
 
@@ -101,7 +102,7 @@ class ExercisesScreenState extends State<ExercisesScreen> {
               ),
               Text("Number of pbs: ${allPersonalBests.length}"),
               Expanded(
-                child: Text("${allPersonalBests}"),
+                child: Text("${allPersonalBests.map((pb) => pb.totalWeight)}"),
               ),
             ],
           );

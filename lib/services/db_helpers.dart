@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/workout_model.dart';
@@ -20,7 +19,18 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
     return await openDatabase(path,
-        version: 2, onCreate: _createDB, onUpgrade: _onUpgrade);
+        version: 3, onCreate: _createDB, onUpgrade: _onUpgrade);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 3) {
+      await db.execute(
+          'ALTER TABLE personal_bests ADD COLUMN type TEXT NOT NULL DEFAULT "rep_based');
+      await db
+          .execute('ALTER TABLE personal_bests ADD COLUMN total_weight REAL');
+      await db.execute(
+          'CREATE UNIQUE INDEX idx_personal_bests_unique ON personal_bests (exerciseId, reps, type)');
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -78,8 +88,15 @@ class DatabaseHelper {
       reps INTEGER NOT NULL,
       weight REAL NOT NULL,
       date TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'rep_based',
+      total_weight REAL,
       FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE
     )
+    ''');
+
+    await db.execute('''
+    CREATE UNIQUE INDEX idx_personal_bests_unique 
+    ON personal_bests (exerciseId, reps, type)
     ''');
 
     await db.execute('''
@@ -95,42 +112,9 @@ class DatabaseHelper {
       tagId INTEGER NOT NULL,
       PRIMARY KEY (exerciseId, tagId),
       FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE,
-      FOREIGN KEY (tagId) REFERENCES exercise_tags (id) ON DELETE CASCADE,
-      )
+      FOREIGN KEY (tagId) REFERENCES exercise_tags (id) ON DELETE CASCADE
+    )
     ''');
-  }
-
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add new tables for version 2
-      await db.execute('''
-      CREATE TABLE personal_bests(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        exerciseId INTEGER NOT NULL,
-        reps INTEGER NOT NULL,
-        weight REAL NOT NULL,
-        date TEXT NOT NULL,
-        FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE
-      )
-      ''');
-
-      await db.execute('''
-      CREATE TABLE exercise_tags(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
-      )
-      ''');
-
-      await db.execute('''
-      CREATE TABLE exercise_tag_relations(
-        exerciseId INTEGER NOT NULL,
-        tagId INTEGER NOT NULL,
-        PRIMARY KEY (exerciseId, tagId),
-        FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE,
-        FOREIGN KEY (tagId) REFERENCES exercise_tags (id) ON DELETE CASCADE
-      )
-      ''');
-    }
   }
 
   Future<int> insertExercise(Exercise exercise) async {
@@ -343,6 +327,91 @@ class DatabaseHelper {
     );
     return results.map((map) => map['name'] as String).toList();
   }
+
+  Future<void> checkAndUpdatePersonalBests(int workoutId) async {
+    final db = await database;
+
+    final exercises = await db.query(
+      'completed_exercises',
+      where: 'workoutId = ?',
+      whereArgs: [workoutId],
+    );
+
+    for (final exercise in exercises) {
+      final exerciseId = exercise['id'] as int;
+      final exerciseName = exercise['name'] as String;
+
+      final baseExerciseResult = await db.query(
+        'exercises',
+        columns: ['id'],
+        where: 'name = ?',
+        whereArgs: [exerciseName],
+        limit: 1,
+      );
+
+      if (baseExerciseResult.isEmpty) {
+        print('Warning: no base exercise found for $exerciseName');
+        continue;
+      }
+
+      final baseExerciseId = baseExerciseResult.first['id'] as int;
+
+      final sets = await db.query(
+        'completed_sets',
+        where: 'exerciseId = ?',
+        whereArgs: [exerciseId],
+      );
+
+      for (final set in sets) {
+        final reps = set['reps'] as int;
+        final weight = (set['weight'] as num).toDouble();
+
+        await db.rawInsert('''
+          INSERT OR REPLACE INTO personal_bests (exerciseId, reps, weight, date, type)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(exerciseId, reps, type) DO UPDATE SET
+            weight = CASE WHEN excluded.weight > weight THEN excluded.weight ELSE weight END,
+            date = CASE WHEN excluded.weight > weight THEN excluded.date ELSE date END
+        ''', [
+          baseExerciseId,
+          reps,
+          weight,
+          DateTime.now().toIso8601String(),
+          'rep_based'
+        ]);
+      }
+
+      if (sets.isNotEmpty) {
+        final totalWeightSet = sets.reduce((currentSet, nextSet) {
+          final currentTotalWeight =
+              (currentSet['reps'] as int) * (currentSet['weight'] as double);
+          final nextTotalWeight =
+              (nextSet['reps'] as int) * (nextSet['weight'] as double);
+          return currentTotalWeight > nextTotalWeight ? currentSet : nextSet;
+        });
+
+        final totalWeight = (totalWeightSet['reps'] as int) *
+            (totalWeightSet['weight'] as double);
+
+        await db.rawInsert('''
+        INSERT OR REPLACE INTO personal_bests (exerciseId, reps, weight, date, type, total_weight)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(exerciseId, reps, type) DO UPDATE SET
+          reps = CASE WHEN excluded.total_weight > total_weight THEN excluded.reps ELSE reps END,
+          weight = CASE WHEN excluded.total_weight > total_weight THEN excluded.weight ELSE weight END,
+          date = CASE WHEN excluded.total_weight > total_weight THEN excluded.date ELSE date END,
+          total_weight = CASE WHEN excluded.total_weight > total_weight THEN excluded.total_weight ELSE total_weight END
+      ''', [
+          baseExerciseId,
+          totalWeightSet['reps'],
+          totalWeightSet['weight'],
+          DateTime.now().toIso8601String(),
+          'overall_weight',
+          totalWeight
+        ]);
+      }
+    }
+  }
 }
 
 class Exercise {
@@ -376,6 +445,8 @@ class PersonalBest {
   int reps;
   double weight;
   String date;
+  String type;
+  final double? totalWeight;
 
   PersonalBest({
     this.id,
@@ -384,6 +455,8 @@ class PersonalBest {
     required this.reps,
     required this.weight,
     required this.date,
+    required this.type,
+    this.totalWeight,
   });
 
   Map<String, dynamic> toMap() {
@@ -394,17 +467,21 @@ class PersonalBest {
       'reps': reps,
       'weight': weight,
       'date': date,
+      'type': type,
+      'total_weight': totalWeight,
     };
   }
 
   static PersonalBest fromMap(Map<String, dynamic> map) {
     return PersonalBest(
-      id: map['id'],
-      exerciseId: map['exerciseId'],
-      workoutId: map['workoutId'],
-      reps: map['reps'],
-      weight: map['weight'],
-      date: map['date'],
+      id: map['id'] as int?,
+      exerciseId: map['exerciseId'] as int? ?? 0,
+      workoutId: map['workoutId'] as int? ?? 0,
+      reps: map['reps'] as int? ?? 0,
+      weight: (map['weight'] as num?)?.toDouble() ?? 0.0,
+      date: map['date'] as String? ?? '',
+      type: map['type'] as String? ?? 'rep_based',
+      totalWeight: (map['total_weight'] as num?)?.toDouble(),
     );
   }
 }

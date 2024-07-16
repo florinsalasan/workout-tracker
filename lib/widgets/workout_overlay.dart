@@ -6,7 +6,6 @@ import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
-import '../providers/history_provider.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -55,9 +54,9 @@ class WorkoutState extends ChangeNotifier {
         durationInSeconds: durationInSeconds);
 
     try {
-      final historyProvider =
-          Provider.of<HistoryProvider>(context, listen: false);
-      await historyProvider.addCompletedWorkout(completedWorkout);
+      final dbHelper = DatabaseHelper.instance;
+      final workoutId = await dbHelper.insertCompletedWorkout(completedWorkout);
+      await dbHelper.checkAndUpdatePersonalBests(workoutId);
 
       // Verify the save by retrieving the workout
     } catch (e) {
