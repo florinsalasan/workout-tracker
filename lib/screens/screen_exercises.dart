@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/exercise_provider.dart';
+import 'package:workout_tracker/widgets/exercise_details_view.dart';
 import 'package:workout_tracker/widgets/exercise_preview.dart';
 
 import '../widgets/sliver_layout.dart';
@@ -94,9 +95,15 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                   itemBuilder: (context, index) {
                     final exercise = exerciseProvider.exercises[index];
                     return ExercisePreview(
-                      exercise: exercise,
-                      onTap: () => print('handle this eventually'),
-                    );
+                        exercise: exercise,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (context) =>
+                                  ExerciseDetailsView(exercise: exercise),
+                            ),
+                          );
+                        });
                   },
                 ),
               ),

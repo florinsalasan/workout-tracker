@@ -432,6 +432,93 @@ class DatabaseHelper {
       }
     });
   }
+
+  Future<List<Map<String, dynamic>>> getExerciseHistory(int exerciseId) async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT ce.*, cs.reps, cs.weight, cw.date
+      FROM completed_exercises ce
+      JOIN completed_sets cs ON ce.id = cs.exerciseId
+      JOIN completed_workouts cw ON ce.workoutId = cw.id
+      WHERE ce.name = (SELECT name FROM exercises WHERE id = ?)
+      ORDER BY cw.date DESC
+    ''', [exerciseId]);
+
+    return results;
+    // Map<String, CompletedExercise> exerciseMap = {};
+
+    // for (var row in results) {
+    //   final date = DateTime.parse(row['date'] as String);
+    //   final dateString = date.toIso8601String().split('T')[0];
+
+    //   if (!exerciseMap.containsKey(dateString)) {
+    //     exerciseMap[dateString] = CompletedExercise(
+    //       id: row['id'] as int,
+    //       workoutId: row['workoutId'] as int,
+    //       name: row['name'] as String,
+    //       sets: [],
+    //     );
+    //   }
+
+    //   exerciseMap[dateString]!.sets.add(CompletedSet(
+    //         exerciseId: row['exerciseId'] as int,
+    //         reps: row['reps'] as int,
+    //         weight: row['weight'] as double,
+    //       ));
+    // }
+
+    // return exerciseMap.values.toList();
+  }
+
+  Future<Map<String, dynamic>> getExercisePersonalBests(int exerciseId) async {
+    final db = await database;
+
+    // Get the best total (weight x reps)
+    final bestTotalResult = await db.query(
+      'personal_bests',
+      where: 'exerciseId = ? AND type = ?',
+      whereArgs: [exerciseId, 'overall_weight'],
+      orderBy: 'total_weight DESC',
+      limit: 1,
+    );
+
+    // Get the heaviest weight (1 rep max)
+    final heaviestWeightResult = await db.query(
+      'personal_bests',
+      where: 'exerciseId = ? AND type = ?',
+      whereArgs: [exerciseId, 'rep_based'],
+      orderBy: 'weight DESC',
+      limit: 1,
+    );
+
+    return {
+      'bestTotal': bestTotalResult.isNotEmpty
+          ? {
+              'weight': bestTotalResult.first['weight'],
+              'reps': bestTotalResult.first['reps'],
+              'total': bestTotalResult.first['total_weight'],
+            }
+          : null,
+      'heaviestWeight': heaviestWeightResult.isNotEmpty
+          ? {
+              'weight': heaviestWeightResult.first['weight'],
+              'reps': heaviestWeightResult.first['reps'],
+            }
+          : null,
+    };
+  }
+
+  Future<List<PersonalBest>> getExerciseRecords(int exerciseId) async {
+    final db = await database;
+    final results = await db.query(
+      'personal_bests',
+      where: 'exerciseId = ? AND type = ?',
+      whereArgs: [exerciseId, 'rep_based'],
+      orderBy: 'reps ASC',
+    );
+
+    return results.map((map) => PersonalBest.fromMap(map)).toList();
+  }
 }
 
 class Exercise {
