@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import '../models/workout_model.dart';
 import '../services/db_helpers.dart';
 import 'package:intl/intl.dart';
 
@@ -70,10 +69,6 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
               icon: Icon(CupertinoIcons.star_fill),
               label: 'Personal Bests',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.list_number),
-              label: 'Records',
-            ),
           ],
         ),
         tabBuilder: (context, index) {
@@ -85,12 +80,8 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
               );
             case 1:
               return CupertinoTabView(
-                builder: (context) =>
-                    PersonalBestsTab(personalBests: personalBests),
-              );
-            case 2:
-              return CupertinoTabView(
-                builder: (context) => RecordsTab(records: records),
+                builder: (context) => PBsAndRecordsTab(
+                    records: records, personalBests: personalBests),
               );
             default:
               return const SizedBox.shrink();
@@ -141,56 +132,49 @@ class PerformanceHistoryTab extends StatelessWidget {
       });
 }
 
-class PersonalBestsTab extends StatelessWidget {
+class PBsAndRecordsTab extends StatelessWidget {
+  final List<PersonalBest> records;
   final Map<String, dynamic> personalBests;
 
-  const PersonalBestsTab({Key? key, required this.personalBests})
-      : super(key: key);
+  const PBsAndRecordsTab(
+      {super.key, required this.records, required this.personalBests});
 
   @override
   Widget build(BuildContext context) {
     final bestTotal = personalBests['bestTotal'];
     final heaviestWeight = personalBests['heaviestWeight'];
 
-    return CupertinoListSection(
-      children: [
-        if (bestTotal != null)
-          CupertinoListTile(
-            title: const Text('Best Total (Weight x Reps)'),
-            subtitle: Text(
-                '${bestTotal['weight']} kg x ${bestTotal['reps']} reps = ${bestTotal['total']} kg'),
-          ),
-        if (heaviestWeight != null)
-          CupertinoListTile(
-            title: const Text('Heaviest Weight'),
-            subtitle: Text(
-                '${heaviestWeight['weight']} kg for ${heaviestWeight['reps']} reps'),
-          ),
-      ],
-    );
-  }
-}
-
-class RecordsTab extends StatelessWidget {
-  final List<PersonalBest> records;
-
-  const RecordsTab({Key? key, required this.records}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
     if (records.isEmpty) {
       return const Center(child: Text('No records available'));
     }
 
-    return ListView.builder(
-      itemCount: records.length,
-      itemBuilder: (context, index) {
-        final record = records[index];
-        return CupertinoListTile(
-          title: Text('${record.reps} reps'),
-          subtitle: Text('${record.weight} kg on ${record.date}'),
-        );
-      },
+    return ListView(
+      children: [
+        CupertinoListSection(
+          header: const Text('Overall Records'),
+          children: [
+            if (bestTotal != null)
+              CupertinoListTile(
+                title: Text('Best Total (Weight x Reps):'),
+                subtitle: Text('${bestTotal['total']}'),
+              ),
+            if (heaviestWeight != null)
+              CupertinoListTile(
+                title: Text('Heaviest Weight:'),
+                subtitle: Text('${heaviestWeight['weight']}'),
+              ),
+          ],
+        ),
+        CupertinoListSection(
+          header: const Text('Personal Bests by Reps'),
+          children: records.map((record) {
+            return CupertinoListTile(
+              title: Text('${record.reps} reps'),
+              subtitle: Text('${record.weight}'),
+            );
+          }).toList(),
+        )
+      ],
     );
   }
 }
