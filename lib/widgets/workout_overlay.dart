@@ -13,13 +13,20 @@ class WorkoutState extends ChangeNotifier {
   // This list holds the exercises that the user is currently tracking in their workout
   final List<OverlayExercise> _exercises = [];
   DateTime? _workoutStartTime;
+  int _currentTabIndex = 0;
 
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;
   List<OverlayExercise> get exercises => _exercises;
+  int get currentTabIndex => _currentTabIndex;
 
-  static const double minHeight = 25;
-  static const double maxHeight = 800;
+  static const double minHeight = 60;
+  static const double maxHeight = 750;
+
+  void setCurrentTabIndex(int index) {
+    _currentTabIndex = index;
+    notifyListeners();
+  }
 
   void startWorkout() {
     _isWorkoutActive = true;
@@ -169,39 +176,34 @@ class WorkoutOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
-        return Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: workoutState.overlayHeight,
-          child: GestureDetector(
-            onVerticalDragUpdate: (details) => _handleDrag(context, details),
-            onVerticalDragEnd: (details) => _handleDragEnd(context, details),
-            child: Container(
-              decoration: BoxDecoration(
-                  // color: CupertinoColors.systemGreen.withOpacity(0.9),
-                  color: CupertinoColors.systemBackground,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
-                  boxShadow: [
-                    BoxShadow(
-                        color: CupertinoColors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, -5))
-                  ]),
-              child: Column(
-                children: [
-                  _buildHandle(context, workoutState),
-                  Expanded(
-                    child: CustomScrollView(
-                      slivers: _buildSlivers(context, workoutState),
-                    ),
+        return GestureDetector(
+          onVerticalDragUpdate: (details) => _handleDrag(context, details),
+          onVerticalDragEnd: (details) => _handleDragEnd(context, details),
+          child: Container(
+            height: workoutState._overlayHeight,
+            decoration: BoxDecoration(
+                // color: CupertinoColors.systemGreen.withOpacity(0.9),
+                color: CupertinoColors.systemBackground,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                      color: CupertinoColors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5))
+                ]),
+            child: Column(
+              children: [
+                _buildHandle(context, workoutState),
+                Expanded(
+                  child: CustomScrollView(
+                    slivers: _buildSlivers(context, workoutState),
                   ),
-                  const SizedBox(
-                    height: 40,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(
+                  height: 40,
+                ),
+              ],
             ),
           ),
         );

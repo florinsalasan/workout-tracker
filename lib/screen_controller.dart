@@ -20,37 +20,50 @@ class MainScreen extends StatelessWidget {
             ((workoutState.overlayHeight - WorkoutState.minHeight) /
                     (WorkoutState.maxHeight - WorkoutState.minHeight))
                 .clamp(0.0, 1.0);
-        return CupertinoTabScaffold(
-          tabBar: CupertinoTabBar(
-            height: (_tabBarHeight * visibilityFactor).clamp(0.0, 50.0),
-            backgroundColor: Color.fromRGBO(255, 255, 255, visibilityFactor),
-            items: const [
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.plus_circle), label: 'New Workout'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.clock), label: 'History'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.graph_square), label: 'Analytics'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.list_bullet), label: 'Exercises'),
-              BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
-            ],
-          ),
-          tabBuilder: (context, index) {
-            return CupertinoTabView(
+        return Stack(
+          children: [
+            CupertinoTabView(
               builder: (context) {
                 return CupertinoPageScaffold(
-                  child: Stack(
-                    children: [
-                      _buildScreen(index),
-                      if (workoutState.isWorkoutActive) const WorkoutOverlay(),
-                    ],
-                  ),
+                  child: _buildScreen(workoutState.currentTabIndex),
                 );
               },
-            );
-          },
+            ),
+            if (workoutState.isWorkoutActive)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: _tabBarHeight,
+                child: WorkoutOverlay(),
+              ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: CupertinoTabBar(
+                currentIndex: workoutState.currentTabIndex,
+                onTap: (index) => workoutState.setCurrentTabIndex(index),
+                height: (_tabBarHeight * visibilityFactor).clamp(0.0, 50.0),
+                backgroundColor:
+                    Color.fromRGBO(255, 255, 255, visibilityFactor),
+                items: const [
+                  BottomNavigationBarItem(
+                      icon: Icon(CupertinoIcons.plus_circle),
+                      label: 'New Workout'),
+                  BottomNavigationBarItem(
+                      icon: Icon(CupertinoIcons.clock), label: 'History'),
+                  BottomNavigationBarItem(
+                      icon: Icon(CupertinoIcons.graph_square),
+                      label: 'Analytics'),
+                  BottomNavigationBarItem(
+                      icon: Icon(CupertinoIcons.list_bullet),
+                      label: 'Exercises'),
+                  BottomNavigationBarItem(
+                      icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
