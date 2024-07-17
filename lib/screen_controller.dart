@@ -7,33 +7,28 @@ import 'screens/screen_analytics.dart';
 import 'screens/screen_exercises.dart';
 import 'screens/screen_scans.dart';
 
-class MainScreen extends StatelessWidget {
-  MainScreen({super.key});
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
-  static const double _tabBarHeight = 50;
+  @override
+  _MainScreenState createState() => _MainScreenState();
+}
 
-  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-  ];
+class _MainScreenState extends State<MainScreen> {
+  static const double _tabBarHeight = 90;
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
+    5,
+    (_) => GlobalKey<NavigatorState>(),
+  );
 
   void _handleTabTap(
       BuildContext context, WorkoutState workoutState, int index) {
     final currentNavigatorKey = _navigatorKeys[workoutState.currentTabIndex];
-    final targetNavigatorKey = _navigatorKeys[index];
 
     if (index == workoutState.currentTabIndex) {
-      // If tapping the current tab, pop to first route if possible
       currentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-    } else {
-      // If switching tabs, pop to first route on the target tab if possible
-      targetNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     }
 
-    // Set the new tab index
     workoutState.setCurrentTabIndex(index);
   }
 
@@ -47,53 +42,93 @@ class MainScreen extends StatelessWidget {
                 .clamp(0.0, 1.0);
         return Stack(
           children: [
-            CupertinoTabView(
-              navigatorKey: _navigatorKeys[workoutState.currentTabIndex],
-              builder: (context) {
-                return CupertinoPageScaffold(
-                  child: _buildScreen(workoutState.currentTabIndex),
-                );
-              },
+            // Tab Views
+            IndexedStack(
+              index: workoutState.currentTabIndex,
+              children: [
+                _buildTabView(0),
+                _buildTabView(1),
+                _buildTabView(2),
+                _buildTabView(3),
+                _buildTabView(4),
+              ],
             ),
+            // Workout Overlay
             if (workoutState.isWorkoutActive)
-              const Positioned(
+              Positioned(
                 left: 0,
                 right: 0,
-                bottom: _tabBarHeight,
-                child: WorkoutOverlay(),
+                bottom: _tabBarHeight * visibilityFactor,
+                child: const WorkoutOverlay(),
               ),
+            // Tab Bar
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: CupertinoTabBar(
-                currentIndex: workoutState.currentTabIndex,
-                onTap: (index) => {
-                  _handleTabTap(context, workoutState, index),
-                },
-                height: (_tabBarHeight * visibilityFactor).clamp(0.0, 50.0),
-                backgroundColor:
-                    Color.fromRGBO(255, 255, 255, visibilityFactor),
-                items: const [
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.plus_circle),
-                      label: 'New Workout'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.clock), label: 'History'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.graph_square),
-                      label: 'Analytics'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.list_bullet),
-                      label: 'Exercises'),
-                  BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.camera), label: 'Body Scan'),
-                ],
-              ),
+              child: _buildTabBar(workoutState, visibilityFactor),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildTabView(int index) {
+    return CupertinoTabView(
+      navigatorKey: _navigatorKeys[index],
+      builder: (context) {
+        return CupertinoPageScaffold(
+          child: _buildScreen(index),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabBar(WorkoutState workoutState, double visibilityFactor) {
+    return Container(
+      height: (_tabBarHeight * visibilityFactor).clamp(0.0, _tabBarHeight),
+      color: CupertinoColors.systemBackground.withOpacity(visibilityFactor),
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildTabBarItem(
+              CupertinoIcons.plus_circle, 'New Workout', 0, workoutState),
+          _buildTabBarItem(CupertinoIcons.clock, 'History', 1, workoutState),
+          _buildTabBarItem(
+              CupertinoIcons.graph_square, 'Analytics', 2, workoutState),
+          _buildTabBarItem(
+              CupertinoIcons.list_bullet, 'Exercises', 3, workoutState),
+          _buildTabBarItem(CupertinoIcons.camera, 'Body Scan', 4, workoutState),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBarItem(
+      IconData icon, String label, int index, WorkoutState workoutState) {
+    final isSelected = index == workoutState.currentTabIndex;
+    return GestureDetector(
+      onTap: () => _handleTabTap(context, workoutState, index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              color: isSelected
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.inactiveGray),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.inactiveGray,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -110,7 +145,7 @@ class MainScreen extends StatelessWidget {
       case 4:
         return const ScanScreen();
       default:
-        throw Exception("Invalid tab how did you do this :O");
+        throw Exception("Invalid tab index");
     }
   }
 }

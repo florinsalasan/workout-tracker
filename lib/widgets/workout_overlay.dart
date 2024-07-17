@@ -20,8 +20,8 @@ class WorkoutState extends ChangeNotifier {
   List<OverlayExercise> get exercises => _exercises;
   int get currentTabIndex => _currentTabIndex;
 
-  static const double minHeight = 60;
-  static const double maxHeight = 750;
+  static const double minHeight = 30;
+  static const double maxHeight = 800;
 
   void setCurrentTabIndex(int index) {
     _currentTabIndex = index;
