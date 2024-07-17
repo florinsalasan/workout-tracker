@@ -276,8 +276,10 @@ class WorkoutOverlay extends StatelessWidget {
             );
             if (result != null) {
               if (!context.mounted) {
-                print(
-                    'context did not mount when adding a new exercise try again');
+                if (kDebugMode) {
+                  print(
+                      'context did not mount when adding a new exercise try again');
+                }
                 Error();
               } else {
                 workoutState.addExercise(result, context);

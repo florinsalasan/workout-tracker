@@ -16,6 +16,7 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
   Map<String, dynamic> personalBests = {};
   List<PersonalBest> records = [];
   bool isLoading = true;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -58,35 +59,63 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
       navigationBar: CupertinoNavigationBar(
         middle: Text(widget.exercise.name),
       ),
-      child: CupertinoTabScaffold(
-        tabBar: CupertinoTabBar(
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.star_fill),
-              label: 'Personal Bests',
+      child: SafeArea(
+        child: Column(
+          children: [
+            CustomCupertinoSegmentedControl(
+              children: const {
+                0: Text('Personal Bests'),
+                1: Text('History'),
+              },
+              onValueChanged: (int value) {
+                setState(() {
+                  _selectedIndex = value;
+                });
+              },
+              groupValue: _selectedIndex,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.chart_bar_fill),
-              label: 'History',
+            Expanded(
+              child: _selectedIndex == 0
+                  ? PBsAndRecordsTab(
+                      records: records, personalBests: personalBests)
+                  : PerformanceHistoryTab(history: exerciseHistory),
             ),
           ],
         ),
-        tabBuilder: (context, index) {
-          switch (index) {
-            case 0:
-              return CupertinoTabView(
-                builder: (context) => PBsAndRecordsTab(
-                    records: records, personalBests: personalBests),
-              );
-            case 1:
-              return CupertinoTabView(
-                builder: (context) =>
-                    PerformanceHistoryTab(history: exerciseHistory),
-              );
-            default:
-              return const SizedBox.shrink();
-          }
-        },
+      ),
+    );
+  }
+}
+
+class CustomCupertinoSegmentedControl extends StatelessWidget {
+  final Map<int, Widget> children;
+  final ValueChanged<int> onValueChanged;
+  final int groupValue;
+
+  const CustomCupertinoSegmentedControl({
+    super.key,
+    required this.children,
+    required this.onValueChanged,
+    required this.groupValue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.systemGrey4,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: CupertinoSegmentedControl<int>(
+        children: children,
+        onValueChanged: onValueChanged,
+        groupValue: groupValue,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       ),
     );
   }

@@ -36,7 +36,6 @@ class ExercisesScreenState extends State<ExercisesScreen> {
     final pbs = await DatabaseHelper.instance.getAllPersonalBests();
     setState(() {
       allPersonalBests = pbs;
-      print(pbs.first.date);
     });
   }
 

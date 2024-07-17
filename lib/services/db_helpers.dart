@@ -258,7 +258,6 @@ class DatabaseHelper {
       ORDER BY cs.id 
     ''', [exerciseName, exerciseName]);
 
-    print(results.length);
     return results.map((map) => CompletedSet.fromMap(map)).toList();
   }
 
@@ -351,6 +350,7 @@ class DatabaseHelper {
         );
 
         if (baseExerciseResult.isEmpty) {
+          // TODO: Handle error since this is dumb atm, continuing doesn't make sense
           print('Warning: no base exercise found for $exerciseName');
           continue;
         }
@@ -396,8 +396,7 @@ class DatabaseHelper {
             } else {
               // hopefully breaks for loop once a smaller rep range is no longer a pb
               // since any other reps will be as large or larger than the value we are
-              // trying to update to.
-              print('reps that do not qualify: $i');
+              // trying to update to. seems to have worked when I still was printing here
               break;
             }
           }

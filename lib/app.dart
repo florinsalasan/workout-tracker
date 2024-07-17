@@ -9,7 +9,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (Platform.isIOS) {
-      return CupertinoApp(
+      return const CupertinoApp(
         home: MainScreen(),
       );
     } else {
@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: MainScreen(),
+        home: const MainScreen(),
       );
     }
   }
