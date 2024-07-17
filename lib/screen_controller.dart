@@ -8,9 +8,34 @@ import 'screens/screen_exercises.dart';
 import 'screens/screen_scans.dart';
 
 class MainScreen extends StatelessWidget {
-  const MainScreen({super.key});
+  MainScreen({super.key});
 
   static const double _tabBarHeight = 50;
+
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+  ];
+
+  void _handleTabTap(
+      BuildContext context, WorkoutState workoutState, int index) {
+    final currentNavigatorKey = _navigatorKeys[workoutState.currentTabIndex];
+    final targetNavigatorKey = _navigatorKeys[index];
+
+    if (index == workoutState.currentTabIndex) {
+      // If tapping the current tab, pop to first route if possible
+      currentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    } else {
+      // If switching tabs, pop to first route on the target tab if possible
+      targetNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    }
+
+    // Set the new tab index
+    workoutState.setCurrentTabIndex(index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +48,7 @@ class MainScreen extends StatelessWidget {
         return Stack(
           children: [
             CupertinoTabView(
+              navigatorKey: _navigatorKeys[workoutState.currentTabIndex],
               builder: (context) {
                 return CupertinoPageScaffold(
                   child: _buildScreen(workoutState.currentTabIndex),
@@ -42,7 +68,9 @@ class MainScreen extends StatelessWidget {
               bottom: 0,
               child: CupertinoTabBar(
                 currentIndex: workoutState.currentTabIndex,
-                onTap: (index) => workoutState.setCurrentTabIndex(index),
+                onTap: (index) => {
+                  _handleTabTap(context, workoutState, index),
+                },
                 height: (_tabBarHeight * visibilityFactor).clamp(0.0, 50.0),
                 backgroundColor:
                     Color.fromRGBO(255, 255, 255, visibilityFactor),
