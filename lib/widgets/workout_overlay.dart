@@ -11,12 +11,12 @@ class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   double _overlayHeight = 110; // Starting at minimized height
   // This list holds the exercises that the user is currently tracking in their workout
-  final List<Exercise> _exercises = [];
+  final List<OverlayExercise> _exercises = [];
   DateTime? _workoutStartTime;
 
   bool get isWorkoutActive => _isWorkoutActive;
   double get overlayHeight => _overlayHeight;
-  List<Exercise> get exercises => _exercises;
+  List<OverlayExercise> get exercises => _exercises;
 
   static const double minHeight = 25;
   static const double maxHeight = 800;
@@ -94,7 +94,7 @@ class WorkoutState extends ChangeNotifier {
     final dbHelper = DatabaseHelper.instance;
     final lastSets = await dbHelper.getLastCompletedSets(exerciseName);
 
-    final exercise = Exercise(name: exerciseName);
+    final exercise = OverlayExercise(name: exerciseName);
     if (lastSets.isEmpty) {
       exercise.addSet(0, 0);
     } else {
@@ -355,11 +355,11 @@ class WorkoutOverlay extends StatelessWidget {
   }
 }
 
-class Exercise {
+class OverlayExercise {
   final String name;
   final List<ExerciseSet> sets;
 
-  Exercise({required this.name}) : sets = [];
+  OverlayExercise({required this.name}) : sets = [];
 
   void addSet(double weight, int reps) {
     sets.add(ExerciseSet(weight: weight, reps: reps, isCompleted: false));

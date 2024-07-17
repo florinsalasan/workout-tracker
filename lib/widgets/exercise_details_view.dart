@@ -62,12 +62,12 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
         tabBar: CupertinoTabBar(
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.chart_bar_fill),
-              label: 'History',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(CupertinoIcons.star_fill),
               label: 'Personal Bests',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.chart_bar_fill),
+              label: 'History',
             ),
           ],
         ),
@@ -75,13 +75,13 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
           switch (index) {
             case 0:
               return CupertinoTabView(
-                builder: (context) =>
-                    PerformanceHistoryTab(history: exerciseHistory),
+                builder: (context) => PBsAndRecordsTab(
+                    records: records, personalBests: personalBests),
               );
             case 1:
               return CupertinoTabView(
-                builder: (context) => PBsAndRecordsTab(
-                    records: records, personalBests: personalBests),
+                builder: (context) =>
+                    PerformanceHistoryTab(history: exerciseHistory),
               );
             default:
               return const SizedBox.shrink();
@@ -155,12 +155,12 @@ class PBsAndRecordsTab extends StatelessWidget {
           children: [
             if (bestTotal != null)
               CupertinoListTile(
-                title: Text('Best Total (Weight x Reps):'),
+                title: const Text('Best Total (Weight x Reps):'),
                 subtitle: Text('${bestTotal['total']}'),
               ),
             if (heaviestWeight != null)
               CupertinoListTile(
-                title: Text('Heaviest Weight:'),
+                title: const Text('Heaviest Weight:'),
                 subtitle: Text('${heaviestWeight['weight']}'),
               ),
           ],
