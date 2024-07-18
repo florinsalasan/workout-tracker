@@ -89,9 +89,9 @@ class MainScreenState extends State<MainScreen> {
     return Container(
       height: (_tabBarHeight * visibilityFactor).clamp(0.0, _tabBarHeight),
       color: CupertinoColors.systemBackground.withOpacity(visibilityFactor),
-      padding: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 15),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildTabBarItem(
               CupertinoIcons.plus_circle, 'New Workout', 0, workoutState),
@@ -109,25 +109,28 @@ class MainScreenState extends State<MainScreen> {
   Widget _buildTabBarItem(
       IconData icon, String label, int index, WorkoutState workoutState) {
     final isSelected = index == workoutState.currentTabIndex;
-    return GestureDetector(
-      onTap: () => _handleTabTap(context, workoutState, index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon,
-              color: isSelected
-                  ? CupertinoColors.activeBlue
-                  : CupertinoColors.inactiveGray),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected
-                  ? CupertinoColors.activeBlue
-                  : CupertinoColors.inactiveGray,
-              fontSize: 12,
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _handleTabTap(context, workoutState, index),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                color: isSelected
+                    ? CupertinoColors.activeBlue
+                    : CupertinoColors.inactiveGray),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? CupertinoColors.activeBlue
+                    : CupertinoColors.inactiveGray,
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

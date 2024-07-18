@@ -85,12 +85,14 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   ),
                 ),
                 child: SetTrackingWidget(
-                  key: ValueKey('$exerciseIndex-$setIndex'),
+                  key: UniqueKey(),
                   exerciseIndex: exerciseIndex,
                   setIndex: setIndex,
                   initialWeight: set.weight,
                   initialReps: set.reps,
                   isCompleted: set.isCompleted,
+                  previousSetData: PreviousSetData(
+                      set.weight.toString(), set.reps.toString()),
                 ),
               );
             }),

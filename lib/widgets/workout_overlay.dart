@@ -6,6 +6,7 @@ import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
+import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -103,10 +104,18 @@ class WorkoutState extends ChangeNotifier {
 
     final exercise = OverlayExercise(name: exerciseName);
     if (lastSets.isEmpty) {
-      exercise.addSet(0, 0);
+      exercise.addSet(0, 0, const PreviousSetData('0', '0'));
     } else {
       for (var set in lastSets) {
-        exercise.addSet(set.weight, set.reps);
+        print('adding default set values from the addExercise method');
+        exercise.addSet(
+          set.weight,
+          set.reps,
+          PreviousSetData(
+            set.weight.toString(),
+            set.reps.toString(),
+          ),
+        );
       }
     }
     _exercises.add(exercise);
@@ -130,7 +139,8 @@ class WorkoutState extends ChangeNotifier {
 
   void addSet(int exerciseIndex, double weight, int reps) {
     if (exerciseIndex < _exercises.length) {
-      _exercises[exerciseIndex].addSet(weight, reps);
+      _exercises[exerciseIndex].addSet(
+          weight, reps, PreviousSetData(weight.toString(), reps.toString()));
       notifyListeners();
     }
   }
@@ -148,6 +158,7 @@ class WorkoutState extends ChangeNotifier {
 
   void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
       bool isCompleted) {
+    print('set updated');
     updateSetWithoutNotify(exerciseIndex, setIndex, weight, reps, isCompleted);
     notifyListeners();
   }
@@ -365,8 +376,15 @@ class OverlayExercise {
 
   OverlayExercise({required this.name}) : sets = [];
 
-  void addSet(double weight, int reps) {
-    sets.add(ExerciseSet(weight: weight, reps: reps, isCompleted: false));
+  void addSet(double weight, int reps, PreviousSetData previousData) {
+    sets.add(
+      ExerciseSet(
+        weight: weight,
+        reps: reps,
+        isCompleted: false,
+        previousData: previousData,
+      ),
+    );
   }
 }
 
@@ -374,7 +392,14 @@ class ExerciseSet {
   double weight;
   int reps;
   bool isCompleted;
+  final PreviousSetData previousData;
 
-  ExerciseSet(
-      {required this.weight, required this.reps, required this.isCompleted});
+  ExerciseSet({
+    required this.weight,
+    required this.reps,
+    required this.isCompleted,
+    required this.previousData,
+  });
+
+  get previousSetData => previousData;
 }
