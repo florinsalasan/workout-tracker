@@ -5,7 +5,7 @@ import 'screens/screen_home.dart';
 import 'screens/screen_history.dart';
 import 'screens/screen_analytics.dart';
 import 'screens/screen_exercises.dart';
-import 'screens/screen_scans.dart';
+import 'screens/screen_profile.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,7 +15,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class MainScreenState extends State<MainScreen> {
-  static const double _tabBarHeight = 90;
+  static const double _tabBarHeight = 100;
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
     5,
     (_) => GlobalKey<NavigatorState>(),
@@ -100,7 +100,7 @@ class MainScreenState extends State<MainScreen> {
               CupertinoIcons.graph_square, 'Analytics', 2, workoutState),
           _buildTabBarItem(
               CupertinoIcons.list_bullet, 'Exercises', 3, workoutState),
-          _buildTabBarItem(CupertinoIcons.camera, 'Body Scan', 4, workoutState),
+          _buildTabBarItem(CupertinoIcons.person, 'Profile', 4, workoutState),
         ],
       ),
     );
@@ -146,7 +146,7 @@ class MainScreenState extends State<MainScreen> {
       case 3:
         return const ExercisesScreen();
       case 4:
-        return const ScanScreen();
+        return const ProfileScreen();
       default:
         throw Exception("Invalid tab index");
     }
