@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/models/workout_model.dart';
+import 'package:workout_tracker/providers/history_provider.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
@@ -39,7 +40,8 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> endWorkout(BuildContext context) async {
+  Future<void> endWorkout(
+      BuildContext context, HistoryProvider historyProvider) async {
     if (_workoutStartTime == null) {
       if (kDebugMode) {
         print("Something went wrong with start time of the workout");
@@ -75,6 +77,8 @@ class WorkoutState extends ChangeNotifier {
         print("Error saving workout: $e");
       }
     }
+    historyProvider.addCompletedWorkout(completedWorkout);
+    notifyListeners();
     cancelWorkout();
   }
 
@@ -347,6 +351,7 @@ class WorkoutOverlay extends StatelessWidget {
   }
 
   _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
+    final historyProvider = context.read<HistoryProvider>();
     return CupertinoButton(
       onPressed: () => showCupertinoModalPopup(
         context: context,
@@ -362,7 +367,7 @@ class WorkoutOverlay extends StatelessWidget {
             CupertinoDialogAction(
                 isDefaultAction: true,
                 onPressed: () => {
-                      workoutState.endWorkout(context),
+                      workoutState.endWorkout(context, historyProvider),
                       Navigator.pop(context),
                     },
                 child: const Text("End Workout")),

@@ -89,7 +89,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
     }
   }
 
-  void _updateWorkoutState() {
+  void _updateWorkoutState({bool needsConversion = false}) {
     final workoutState = context.read<WorkoutState>();
     final userPreferences = UserPreferences();
     final weightUnit = userPreferences.weightUnit;
