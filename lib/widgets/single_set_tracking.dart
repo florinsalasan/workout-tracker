@@ -97,13 +97,13 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
     final weightInGrams = WeightConverter.convertToGrams(
       double.tryParse(_weightController.text) ?? 0,
       weightUnit,
-    ).round();
+    ).round().toDouble();
 
     workoutState.updateSetWithoutNotify(
       widget.exerciseIndex,
       widget.setIndex,
       // widget.initialWeight,
-      weightInGrams as double,
+      weightInGrams,
       int.tryParse(_repsController.text) ?? 0,
       widget.isCompleted,
     );
@@ -180,6 +180,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                         RegExp(r'^\d*\.?\d{0,2}$')),
                   ],
                   textAlign: TextAlign.center,
+                  // TODO: add a flag to this to pass down to the updateWithoutNotify call in workoutState to not convert an additional time if coming from here or something, this onChanged and the onPressed to mark a set as complete both call the same methods down the line but in this case conversion does not need to happen
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),

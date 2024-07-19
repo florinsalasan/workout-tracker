@@ -1,4 +1,6 @@
 import 'package:flutter/cupertino.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../services/db_helpers.dart';
 import 'package:intl/intl.dart';
 
@@ -132,6 +134,8 @@ class PerformanceHistoryTab extends StatelessWidget {
       return const Center(child: Text('No history available'));
     }
 
+    final weightUnit = UserPreferences().weightUnit;
+
     final groupedHistory = groupBy(history, (Map obj) => obj['date'] as String);
 
     return ListView.builder(
@@ -144,8 +148,8 @@ class PerformanceHistoryTab extends StatelessWidget {
           header: Text(DateFormat('MMMM d, yyyy').format(DateTime.parse(date))),
           children: exercises.map((exercise) {
             return CupertinoListTile(
-              title:
-                  Text('${exercise['weight']} kg x ${exercise['reps']} reps'),
+              title: Text(
+                  '${WeightConverter.convertFromGrams(exercise['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${exercise['reps']} reps'),
             );
           }).toList(),
         );
@@ -177,6 +181,8 @@ class PBsAndRecordsTab extends StatelessWidget {
       return const Center(child: Text('No records available'));
     }
 
+    final weightUnit = UserPreferences().weightUnit;
+
     return ListView(
       children: [
         CupertinoListSection(
@@ -185,12 +191,16 @@ class PBsAndRecordsTab extends StatelessWidget {
             if (bestTotal != null)
               CupertinoListTile(
                 title: const Text('Best Total (Weight x Reps):'),
-                subtitle: Text('${bestTotal['total']}'),
+                // trailing: Text('${bestTotal['total']}'),
+                trailing: Text(
+                    '${WeightConverter.convertFromGrams(bestTotal['total'].round(), weightUnit).toStringAsFixed(1)} $weightUnit'),
               ),
             if (heaviestWeight != null)
               CupertinoListTile(
                 title: const Text('Heaviest Weight:'),
-                subtitle: Text('${heaviestWeight['weight']}'),
+                // trailing: Text('${heaviestWeight['weight']}'),
+                trailing: Text(
+                    '${WeightConverter.convertFromGrams(heaviestWeight['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit'),
               ),
           ],
         ),
@@ -198,8 +208,11 @@ class PBsAndRecordsTab extends StatelessWidget {
           header: const Text('Personal Bests by Reps'),
           children: records.map((record) {
             return CupertinoListTile(
-              title: Text('${record.reps} reps'),
-              subtitle: Text('${record.weight}'),
+              title: records.first != record
+                  ? Text('${record.reps} reps:')
+                  : Text('${record.reps} rep:'),
+              trailing: Text(
+                  '${WeightConverter.convertFromGrams(record.weight.round(), weightUnit).toStringAsFixed(1)} $weightUnit'),
             );
           }).toList(),
         )
