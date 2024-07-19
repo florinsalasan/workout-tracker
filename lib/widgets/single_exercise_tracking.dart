@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'single_set_tracking.dart';
 import 'workout_overlay.dart';
 
@@ -17,6 +18,8 @@ class ExerciseTrackingWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
+        final userPreferences = UserPreferences();
+        final weightUnit = userPreferences.weightUnit;
         final exercise = workoutState.exercises[exerciseIndex];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,18 +42,25 @@ class ExerciseTrackingWidget extends StatelessWidget {
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Row(
                 children: [
-                  SizedBox(width: 50, child: Text('Set')),
-                  SizedBox(width: 10),
-                  Expanded(flex: 2, child: Text('Previous')),
-                  SizedBox(width: 30),
-                  Expanded(flex: 2, child: Text('Weight')),
-                  SizedBox(width: 15),
-                  Expanded(flex: 2, child: Text('Reps')),
-                  SizedBox(width: 44, child: Text('Done')),
+                  const SizedBox(width: 50, child: Text('Set')),
+                  const SizedBox(width: 10),
+                  const Expanded(flex: 2, child: Text('Previous')),
+                  const SizedBox(width: 25),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      weightUnit,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(width: 25),
+                  const Expanded(flex: 2, child: Text('Reps')),
+                  const SizedBox(width: 44, child: Text('Done')),
                 ],
               ),
             ),

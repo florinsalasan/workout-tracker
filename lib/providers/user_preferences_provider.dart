@@ -3,15 +3,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class UserPreferences extends ChangeNotifier {
   static const String _weightUnitKey = 'weightUnit';
+  static final UserPreferences _instance = UserPreferences._internal();
+
+  factory UserPreferences() {
+    return _instance;
+  }
+
+  UserPreferences._internal() {
+    _loadPreferences();
+  }
 
   late SharedPreferences _prefs;
   String _weightUnit = 'kg';
 
   String get weightUnit => _weightUnit;
-
-  UserPreferences() {
-    _loadPreferences();
-  }
 
   Future<void> _loadPreferences() async {
     _prefs = await SharedPreferences.getInstance();

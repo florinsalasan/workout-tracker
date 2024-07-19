@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../models/workout_model.dart';
 
 class DatabaseHelper {
@@ -149,6 +151,9 @@ class DatabaseHelper {
 
   Future<int> insertCompletedWorkout(CompletedWorkout workout) async {
     final db = await database;
+    final userPreferences = UserPreferences();
+    final weightUnit = userPreferences.weightUnit;
+
     return await db.transaction((txn) async {
       // Insert the workout
       final workoutId = await txn.insert('completed_workouts', workout.toMap());
@@ -160,7 +165,13 @@ class DatabaseHelper {
 
         // Insert each set
         for (var set in exercise.sets) {
-          final setMap = set.toMap()..['exerciseId'] = exerciseId;
+          final weightInGrams =
+              WeightConverter.convertToGrams(set.weight, weightUnit);
+          final setMap = {
+            'exerciseId': exerciseId,
+            'reps': set.reps,
+            'weight': weightInGrams,
+          };
           await txn.insert('completed_sets', setMap);
         }
       }
@@ -180,6 +191,9 @@ class DatabaseHelper {
 
   Future<CompletedWorkout?> getCompletedWorkout(int id) async {
     final db = await database;
+    final userPreferences = UserPreferences();
+    final weightUnit = userPreferences.weightUnit;
+
     final workoutMaps = await db.query(
       'completed_workouts',
       where: 'id = ?',
@@ -204,8 +218,16 @@ class DatabaseHelper {
         where: 'exerciseId = ?',
         whereArgs: [exercise.id],
       );
-      exercise.sets =
-          setMaps.map((setMap) => CompletedSet.fromMap(setMap)).toList();
+      exercise.sets = setMaps.map((setMap) {
+        final weightInGrams = setMap['weight'] as int;
+        final convertedWeight =
+            WeightConverter.convertFromGrams(weightInGrams, weightUnit);
+        return CompletedSet(
+          exerciseId: setMap['exerciseId'] as int?,
+          reps: setMap['reps'] as int,
+          weight: convertedWeight,
+        );
+      }).toList();
       return exercise;
     }));
 

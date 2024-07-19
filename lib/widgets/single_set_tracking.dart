@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 
 class PreviousSetData {
@@ -105,6 +106,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         'build called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
+        final userPreferences = UserPreferences();
+        final weightUnit = userPreferences.weightUnit;
         final currentSet =
             workoutState.getSet(widget.exerciseIndex, widget.setIndex);
 
@@ -132,14 +135,14 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                 ),
               ),
               const SizedBox(
-                width: 35,
+                width: 25,
               ),
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: Text(
                   currentSet.previousSetData.weight != '0.0' ||
                           currentSet.previousSetData.reps != '0'
-                      ? "${currentSet.previousSetData.weight} x ${currentSet.previousSetData.reps}"
+                      ? "${currentSet.previousSetData.weight} $weightUnit x ${currentSet.previousSetData.reps}"
                       : '-',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -149,7 +152,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                 ),
               ),
               const SizedBox(
-                width: 40,
+                width: 20,
               ),
               Expanded(
                 flex: 2,
