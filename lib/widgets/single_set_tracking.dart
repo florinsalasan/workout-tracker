@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 
+import '../services/mass_unit_conversions.dart';
+
 class PreviousSetData {
   final String weight;
   final String reps;
@@ -18,6 +20,7 @@ class SetTrackingWidget extends StatefulWidget {
   final double initialWeight;
   final int initialReps;
   final bool isCompleted;
+  final String weightUnit;
 
   const SetTrackingWidget({
     super.key,
@@ -27,6 +30,7 @@ class SetTrackingWidget extends StatefulWidget {
     required this.initialWeight,
     required this.initialReps,
     required this.isCompleted,
+    required this.weightUnit,
   });
 
   @override
@@ -41,31 +45,27 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   void initState() {
-    print(
-        'initState called for set ${widget.setIndex} of exercise ${widget.exerciseIndex} with previous set data of ${widget.previousSetData.weight} x ${widget.previousSetData.reps}');
     super.initState();
-    _weightController =
-        TextEditingController(text: widget.initialWeight.toString());
+    final startingWeight = WeightConverter.convertFromGrams(
+            widget.initialWeight.round(), widget.weightUnit)
+        .round();
+    _weightController = TextEditingController(text: startingWeight.toString());
+
     _repsController =
         TextEditingController(text: widget.initialReps.toString());
-    _weightFocusNode = FocusNode();
-    _repsFocusNode = FocusNode();
 
-    _weightFocusNode.addListener(_handleWeightFocusChange);
-    _repsFocusNode.addListener(_handleRepsFocusChange);
+    _weightFocusNode = FocusNode()..addListener(_handleWeightFocusChange);
+    _repsFocusNode = FocusNode()..addListener(_handleRepsFocusChange);
+
+    // UserPreferences().addListener(_updateWeightDisplay);
   }
 
-  @override
-  void didUpdateWidget(SetTrackingWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    print(
-        'didUpdateWidget called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
-    if (oldWidget.initialWeight != widget.initialWeight ||
-        oldWidget.initialReps != widget.initialReps) {
-      _weightController.text = widget.initialWeight.toString();
-      _repsController.text = widget.initialReps.toString();
-    }
-  }
+  // void _updateWeightDisplay() {
+  //   final weightUnit = UserPreferences().weightUnit;
+  //   final convertedWeight = WeightConverter.convertFromGrams(
+  //       double.parse(_weightController.text).round(), weightUnit);
+  //   _weightController.text = convertedWeight.toStringAsFixed(1);
+  // }
 
   void _handleWeightFocusChange() {
     if (_weightFocusNode.hasFocus) {
@@ -91,10 +91,19 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   void _updateWorkoutState() {
     final workoutState = context.read<WorkoutState>();
+    final userPreferences = UserPreferences();
+    final weightUnit = userPreferences.weightUnit;
+
+    final weightInGrams = WeightConverter.convertToGrams(
+      double.tryParse(_weightController.text) ?? 0,
+      weightUnit,
+    ).round();
+
     workoutState.updateSetWithoutNotify(
       widget.exerciseIndex,
       widget.setIndex,
-      double.tryParse(_weightController.text) ?? 0,
+      // widget.initialWeight,
+      weightInGrams as double,
       int.tryParse(_repsController.text) ?? 0,
       widget.isCompleted,
     );
@@ -102,8 +111,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    print(
-        'build called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         final userPreferences = UserPreferences();
@@ -111,9 +118,14 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         final currentSet =
             workoutState.getSet(widget.exerciseIndex, widget.setIndex);
 
+        final convertedWeight = WeightConverter.convertFromGrams(
+                currentSet.weight.round(), weightUnit)
+            .toStringAsFixed(1);
+
         // Update controllers if the state has changed externally
-        if (currentSet.weight.toString() != _weightController.text) {
-          _weightController.text = currentSet.weight.toString();
+        if (convertedWeight != _weightController.text &&
+            _weightController.text != widget.initialWeight.toString()) {
+          _weightController.text = convertedWeight;
         }
         if (currentSet.reps.toString() != _repsController.text) {
           _repsController.text = currentSet.reps.toString();
@@ -140,10 +152,11 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               Expanded(
                 flex: 3,
                 child: Text(
-                  currentSet.previousSetData.weight != '0.0' ||
-                          currentSet.previousSetData.reps != '0'
-                      ? "${currentSet.previousSetData.weight} $weightUnit x ${currentSet.previousSetData.reps}"
-                      : '-',
+                  currentSet.previousSetData.weight == '0' ||
+                          currentSet.previousSetData.weight == '0.0' ||
+                          currentSet.previousSetData.reps == '0'
+                      ? '-'
+                      : "${WeightConverter.convertFromGrams(double.parse(currentSet.previousSetData.weight).round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${currentSet.previousSetData.reps}",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: CupertinoColors.secondaryLabel,
@@ -161,7 +174,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   focusNode: _weightFocusNode,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  placeholder: 'Weight',
+                  placeholder: weightUnit,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^\d*\.?\d{0,2}$')),
@@ -218,8 +231,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   void dispose() {
-    print(
-        'dispose called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
+    // UserPreferences().removeListener(_updateWeightDisplay);
     _weightController.dispose();
     _repsController.dispose();
     _weightFocusNode.removeListener(_handleWeightFocusChange);

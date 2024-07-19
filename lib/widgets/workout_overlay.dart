@@ -8,6 +8,9 @@ import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
+import '../providers/user_preferences_provider.dart';
+import '../services/mass_unit_conversions.dart';
+
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
   double _overlayHeight = 110; // Starting at minimized height
@@ -107,7 +110,6 @@ class WorkoutState extends ChangeNotifier {
       exercise.addSet(0, 0, const PreviousSetData('0', '0'));
     } else {
       for (var set in lastSets) {
-        print('adding default set values from the addExercise method');
         exercise.addSet(
           set.weight,
           set.reps,
@@ -147,10 +149,17 @@ class WorkoutState extends ChangeNotifier {
 
   void updateSetWithoutNotify(int exerciseIndex, int setIndex, double weight,
       int reps, bool isCompleted) {
+    final userPreferences = UserPreferences();
+    final weightUnit = userPreferences.weightUnit;
+
+    final weightInGrams = WeightConverter.convertToGrams(
+      weight,
+      weightUnit,
+    ).round().toDouble();
     if (exerciseIndex < _exercises.length &&
         setIndex < _exercises[exerciseIndex].sets.length) {
       final set = _exercises[exerciseIndex].sets[setIndex];
-      set.weight = weight;
+      set.weight = weightInGrams;
       set.reps = reps;
       set.isCompleted = isCompleted;
     }
@@ -158,7 +167,6 @@ class WorkoutState extends ChangeNotifier {
 
   void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
       bool isCompleted) {
-    print('set updated');
     updateSetWithoutNotify(exerciseIndex, setIndex, weight, reps, isCompleted);
     notifyListeners();
   }
