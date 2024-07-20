@@ -15,7 +15,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class MainScreenState extends State<MainScreen> {
-  static const double _tabBarHeight = 90;
+  static const double _tabBarHeight = 100;
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
     5,
     (_) => GlobalKey<NavigatorState>(),
@@ -88,7 +88,7 @@ class MainScreenState extends State<MainScreen> {
   Widget _buildTabBar(WorkoutState workoutState, double visibilityFactor) {
     return Container(
       height: (_tabBarHeight * visibilityFactor).clamp(0.0, _tabBarHeight),
-      color: CupertinoColors.systemBackground,
+      color: CupertinoColors.systemBackground.withOpacity(visibilityFactor),
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 15),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

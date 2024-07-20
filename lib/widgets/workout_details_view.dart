@@ -1,7 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:workout_tracker/models/workout_model.dart';
-import 'package:workout_tracker/providers/user_preferences_provider.dart';
-import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../services/date_time_utils.dart';
 
 class WorkoutDetailsView extends StatelessWidget {
@@ -94,8 +92,6 @@ class WorkoutDetailsView extends StatelessWidget {
   }
 
   Widget _buildSetItem(CompletedSet set) {
-    final userPreferences = UserPreferences();
-    final weightUnit = userPreferences.weightUnit;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -106,8 +102,7 @@ class WorkoutDetailsView extends StatelessWidget {
             color: CupertinoColors.activeGreen,
           ),
           const SizedBox(width: 8),
-          Text(
-              '${WeightConverter.convertFromGrams(set.weight.round(), weightUnit).round()} $weightUnit x ${set.reps} reps'),
+          Text('${set.weight}kg x ${set.reps} reps'),
         ],
       ),
     );
