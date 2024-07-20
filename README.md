@@ -7,6 +7,8 @@ A workout tracking app with a long list of features that need to be implemented.
 - An overlay where users can track their workouts, adding in as many exercises and sets as they want
 - An exercise list where users can add custom exercises, as well as check some information about their personal bests for that exercise
 - A workout history tab that details the exercises the user completed along with details of the weight and reps for each set when they are clicked on to expand details of the workout
+- Preferred units of measure for weights has been implemented
+- Adding an exercise populates the sets with what was performed the last time the user has done that exercise. Removing a set doesn't maintain the 'previous' section though.
 
 ## TODO:
 
@@ -16,8 +18,8 @@ A workout tracking app with a long list of features that need to be implemented.
 - [ ] Display a live timer on the overlay handle in place of the 'Active Workout' label
 - [ ] Saving workout templates
 - [ ] Once templates are implemented, launch workouts from templates with exercises and sets pre-added rather than needing the user to add them all
-- [ ] Showcase previous weight x reps for each relevant set inside the overlay to give users an idea of how to progress
-- [ ] Implement settings page to choose units of measure, and many more down the line (default to lbs since I'm in NA)
+- [x] Showcase previous weight x reps for each relevant set inside the overlay to give users an idea of how to progress
+- [x] Implement settings page to choose units of measure, and many more down the line (default to lbs since I'm in NA)
 - [ ] Implement some basic analytics features, charts showcasing various metrics for different exercises
 - [ ] Implement edit functionality for history of workouts
 - [ ] Add many many more exercises to the exercise list

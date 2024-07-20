@@ -39,6 +39,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _repsController;
   late FocusNode _weightFocusNode;
   late FocusNode _repsFocusNode;
+  late UserPreferences _userPreferences;
+  String _lastUnit = 'kg';
 
   @override
   void initState() {
@@ -53,15 +55,23 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
     _weightFocusNode.addListener(_handleWeightFocusChange);
     _repsFocusNode.addListener(_handleRepsFocusChange);
 
-    UserPreferences().addListener(_updateWeightDisplay);
+    _userPreferences = UserPreferences();
+    _lastUnit = _userPreferences.weightUnit;
+    _userPreferences.addListener(_updateWeightDisplay);
   }
 
   void _updateWeightDisplay() {
-    print('updatedWeightDisplay called');
-    final weightUnit = UserPreferences().weightUnit;
-    final convertedWeight = WeightConverter.convertFromGrams(
-        double.parse(_weightController.text).round(), weightUnit);
-    _weightController.text = convertedWeight.toStringAsFixed(1);
+    if (!_weightFocusNode.hasFocus) {
+      final currentWeight = double.tryParse(_weightController.text) ?? 0;
+      final newUnit = _userPreferences.weightUnit;
+      if (_lastUnit != newUnit) {
+        final convertedWeight =
+            WeightConverter.convertWeight(currentWeight, _lastUnit, newUnit);
+        _weightController.text = convertedWeight.toStringAsFixed(1);
+        _lastUnit = newUnit;
+        _updateWorkoutState();
+      }
+    }
   }
 
   @override
@@ -96,12 +106,17 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
     }
   }
 
-  void _updateWorkoutState({bool needsConversion = false}) {
+  void _updateWorkoutState() {
     final workoutState = context.read<WorkoutState>();
+    final currentWeight = double.tryParse(_weightController.text) ?? 0;
+    final weightInGrams = WeightConverter.convertToGrams(
+            currentWeight, _userPreferences.weightUnit)
+        .toDouble();
     workoutState.updateSetWithoutNotify(
       widget.exerciseIndex,
       widget.setIndex,
-      double.tryParse(_weightController.text) ?? 0,
+      weightInGrams,
+      // double.tryParse(_weightController.text) ?? 0,
       int.tryParse(_repsController.text) ?? 0,
       widget.isCompleted,
     );
@@ -111,14 +126,20 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
-        final userPreferences = UserPreferences();
-        final weightUnit = userPreferences.weightUnit;
+        final weightUnit = _userPreferences.weightUnit;
         final currentSet =
             workoutState.getSet(widget.exerciseIndex, widget.setIndex);
 
         // Update controllers if the state has changed externally
-        if (currentSet.weight.toString() != _weightController.text) {
-          _weightController.text = currentSet.weight.toString();
+        // if (currentSet.weight.toString() != _weightController.text) {
+        //   _weightController.text = currentSet.weight.toString();
+        // }
+        if (currentSet.weight !=
+            WeightConverter.convertToGrams(
+                double.parse(_weightController.text), weightUnit)) {
+          _weightController.text = WeightConverter.convertFromGrams(
+                  currentSet.weight.round(), weightUnit)
+              .toStringAsFixed(1);
         }
         if (currentSet.reps.toString() != _repsController.text) {
           _repsController.text = currentSet.reps.toString();
@@ -149,7 +170,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                           currentSet.previousSetData.weight == '0' ||
                           currentSet.previousSetData.reps == '0'
                       ? '-'
-                      : "${currentSet.previousSetData.weight} $weightUnit x ${currentSet.previousSetData.reps}",
+                      : "${WeightConverter.convertFromGrams(double.parse(currentSet.previousSetData.weight).round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${currentSet.previousSetData.reps}",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: CupertinoColors.secondaryLabel,
@@ -173,7 +194,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                         RegExp(r'^\d*\.?\d{0,2}$')),
                   ],
                   textAlign: TextAlign.center,
-                  // TODO: add a flag to this to pass down to the updateWithoutNotify call in workoutState to not convert an additional time if coming from here or something, this onChanged and the onPressed to mark a set as complete both call the same methods down the line but in this case conversion does not need to happen
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),
@@ -209,7 +229,10 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                     workoutState.updateSet(
                       widget.exerciseIndex,
                       widget.setIndex,
-                      double.tryParse(_weightController.text) ?? 0,
+                      WeightConverter.convertToGrams(
+                              double.tryParse(_weightController.text) ?? 0,
+                              weightUnit)
+                          .toDouble(),
                       int.tryParse(_repsController.text) ?? 0,
                       !currentSet.isCompleted,
                     );
@@ -225,7 +248,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   void dispose() {
-    _weightController.removeListener(_updateWeightDisplay);
+    _userPreferences.removeListener(_updateWeightDisplay);
     _weightController.dispose();
     _repsController.dispose();
     _weightFocusNode.removeListener(_handleWeightFocusChange);

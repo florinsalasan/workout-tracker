@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
-import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
-import 'package:workout_tracker/services/mass_unit_conversions.dart';
+// import 'package:workout_tracker/providers/user_preferences_provider.dart';
+// import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
@@ -58,8 +58,13 @@ class WorkoutState extends ChangeNotifier {
                   workoutId: null,
                   name: exercise.name,
                   sets: exercise.sets
-                      .map((set) => CompletedSet(
-                          exerciseId: null, reps: set.reps, weight: set.weight))
+                      .map(
+                        (set) => CompletedSet(
+                          exerciseId: null,
+                          reps: set.reps,
+                          weight: set.weight,
+                        ),
+                      )
                       .toList(),
                 ))
             .toList(),
@@ -108,26 +113,20 @@ class WorkoutState extends ChangeNotifier {
     final dbHelper = DatabaseHelper.instance;
     final lastSets = await dbHelper.getLastCompletedSets(exerciseName);
 
-    final weightUnit = UserPreferences().weightUnit;
+    // final weightUnit = UserPreferences().weightUnit;
 
     final exercise = OverlayExercise(name: exerciseName);
     if (lastSets.isEmpty) {
       exercise.addSet(0, 0, const PreviousSetData('0', '0'));
     } else {
       for (var set in lastSets) {
-        print('adding default set values from the addExercise method');
-        // THESE VALUES ARE STORED AS GRAMS IN THE DB SO CHANGE IT HERE BACK TO USERS
-        // PREFERRED UNITS SO THAT IT'S CLEAN
+        // Weight values should be getting saved in db as grams, however conversion now happens
+        // in other parts of the code. So leave this as is, don't touch.
         exercise.addSet(
-          // TODO: Find a better solution than whatever the below abomination is
-          // This is stupid. converting a double to int back to double to string to double
-          double.parse(
-              WeightConverter.convertFromGrams(set.weight.round(), weightUnit)
-                  .toStringAsFixed(1)),
+          set.weight,
           set.reps,
           PreviousSetData(
-            WeightConverter.convertFromGrams(set.weight.round(), weightUnit)
-                .toStringAsFixed(1),
+            set.weight.toStringAsFixed(1),
             set.reps.toString(),
           ),
         );
@@ -173,7 +172,6 @@ class WorkoutState extends ChangeNotifier {
 
   void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
       bool isCompleted) {
-    print('set updated');
     updateSetWithoutNotify(exerciseIndex, setIndex, weight, reps, isCompleted);
     notifyListeners();
   }

@@ -11,4 +11,10 @@ class WeightConverter {
   static double convertFromGrams(int grams, String toUnit) {
     return toUnit == 'kg' ? (grams / gramsPerKg) : (grams / gramsPerLb);
   }
+
+  static double convertWeight(double weight, String fromUnit, String toUnit) {
+    if (fromUnit == toUnit) return weight;
+    int grams = convertToGrams(weight, fromUnit);
+    return convertFromGrams(grams, toUnit);
+  }
 }

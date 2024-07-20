@@ -151,8 +151,8 @@ class DatabaseHelper {
 
   Future<int> insertCompletedWorkout(CompletedWorkout workout) async {
     final db = await database;
-    final userPreferences = UserPreferences();
-    final weightUnit = userPreferences.weightUnit;
+    // final userPreferences = UserPreferences();
+    // final weightUnit = userPreferences.weightUnit;
 
     return await db.transaction((txn) async {
       // Insert the workout
@@ -165,12 +165,13 @@ class DatabaseHelper {
 
         // Insert each set
         for (var set in exercise.sets) {
-          final weightInGrams =
-              WeightConverter.convertToGrams(set.weight, weightUnit);
+          // final weightInGrams =
+          //     WeightConverter.convertToGrams(set.weight, weightUnit);
           final setMap = {
             'exerciseId': exerciseId,
             'reps': set.reps,
-            'weight': weightInGrams,
+            // 'weight': weightInGrams,
+            'weight': set.weight,
           };
           await txn.insert('completed_sets', setMap);
         }
