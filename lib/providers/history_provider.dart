@@ -10,7 +10,7 @@ class HistoryProvider with ChangeNotifier {
   }
 
   Future<void> addCompletedWorkout(CompletedWorkout workout) async {
-    await _dbHelper.insertCompletedWorkout(workout);
+    // await _dbHelper.insertCompletedWorkout(workout);
     notifyListeners();
   }
 

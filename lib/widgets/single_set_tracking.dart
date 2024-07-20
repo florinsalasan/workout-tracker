@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 
 class PreviousSetData {
@@ -41,8 +42,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   void initState() {
-    print(
-        'initState called for set ${widget.setIndex} of exercise ${widget.exerciseIndex} with previous set data of ${widget.previousSetData.weight} x ${widget.previousSetData.reps}');
     super.initState();
     _weightController =
         TextEditingController(text: widget.initialWeight.toString());
@@ -53,13 +52,21 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
     _weightFocusNode.addListener(_handleWeightFocusChange);
     _repsFocusNode.addListener(_handleRepsFocusChange);
+
+    UserPreferences().addListener(_updateWeightDisplay);
+  }
+
+  void _updateWeightDisplay() {
+    print('updatedWeightDisplay called');
+    final weightUnit = UserPreferences().weightUnit;
+    final convertedWeight = WeightConverter.convertFromGrams(
+        double.parse(_weightController.text).round(), weightUnit);
+    _weightController.text = convertedWeight.toStringAsFixed(1);
   }
 
   @override
   void didUpdateWidget(SetTrackingWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    print(
-        'didUpdateWidget called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
     if (oldWidget.initialWeight != widget.initialWeight ||
         oldWidget.initialReps != widget.initialReps) {
       _weightController.text = widget.initialWeight.toString();
@@ -102,8 +109,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    print(
-        'build called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         final userPreferences = UserPreferences();
@@ -140,10 +145,11 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               Expanded(
                 flex: 3,
                 child: Text(
-                  currentSet.previousSetData.weight != '0.0' ||
-                          currentSet.previousSetData.reps != '0'
-                      ? "${currentSet.previousSetData.weight} $weightUnit x ${currentSet.previousSetData.reps}"
-                      : '-',
+                  currentSet.previousSetData.weight == '0.0' ||
+                          currentSet.previousSetData.weight == '0' ||
+                          currentSet.previousSetData.reps == '0'
+                      ? '-'
+                      : "${currentSet.previousSetData.weight} $weightUnit x ${currentSet.previousSetData.reps}",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: CupertinoColors.secondaryLabel,
@@ -219,8 +225,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   void dispose() {
-    print(
-        'dispose called for set ${widget.setIndex} of exercise ${widget.exerciseIndex}');
+    _weightController.removeListener(_updateWeightDisplay);
     _weightController.dispose();
     _repsController.dispose();
     _weightFocusNode.removeListener(_handleWeightFocusChange);

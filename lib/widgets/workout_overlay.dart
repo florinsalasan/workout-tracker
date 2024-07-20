@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
+import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
@@ -106,17 +108,26 @@ class WorkoutState extends ChangeNotifier {
     final dbHelper = DatabaseHelper.instance;
     final lastSets = await dbHelper.getLastCompletedSets(exerciseName);
 
+    final weightUnit = UserPreferences().weightUnit;
+
     final exercise = OverlayExercise(name: exerciseName);
     if (lastSets.isEmpty) {
       exercise.addSet(0, 0, const PreviousSetData('0', '0'));
     } else {
       for (var set in lastSets) {
         print('adding default set values from the addExercise method');
+        // THESE VALUES ARE STORED AS GRAMS IN THE DB SO CHANGE IT HERE BACK TO USERS
+        // PREFERRED UNITS SO THAT IT'S CLEAN
         exercise.addSet(
-          set.weight,
+          // TODO: Find a better solution than whatever the below abomination is
+          // This is stupid. converting a double to int back to double to string to double
+          double.parse(
+              WeightConverter.convertFromGrams(set.weight.round(), weightUnit)
+                  .toStringAsFixed(1)),
           set.reps,
           PreviousSetData(
-            set.weight.toString(),
+            WeightConverter.convertFromGrams(set.weight.round(), weightUnit)
+                .toStringAsFixed(1),
             set.reps.toString(),
           ),
         );

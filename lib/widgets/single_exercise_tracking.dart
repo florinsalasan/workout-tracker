@@ -102,7 +102,9 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   initialReps: set.reps,
                   isCompleted: set.isCompleted,
                   previousSetData: PreviousSetData(
-                      set.weight.toString(), set.reps.toString()),
+                    set.weight.toString(),
+                    set.reps.toString(),
+                  ),
                 ),
               );
             }),
