@@ -36,6 +36,7 @@ class MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
+        final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
         final visibilityFactor = 1.0 -
             ((workoutState.overlayHeight - WorkoutState.minHeight) /
                     (WorkoutState.maxHeight - WorkoutState.minHeight))
@@ -58,8 +59,12 @@ class MainScreenState extends State<MainScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: _tabBarHeight * visibilityFactor,
-                child: const WorkoutOverlay(),
+                bottom: (_tabBarHeight * visibilityFactor) + keyboardHeight,
+                child: SizedBox(
+                  height:
+                      MediaQuery.of(context).size.height - keyboardHeight - 90,
+                  child: const WorkoutOverlay(),
+                ),
               ),
             // Tab Bar
             Positioned(

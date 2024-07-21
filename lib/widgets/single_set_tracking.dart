@@ -188,7 +188,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   focusNode: _weightFocusNode,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  placeholder: 'Weight',
+                  placeholder: weightUnit,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^\d*\.?\d{0,2}$')),
