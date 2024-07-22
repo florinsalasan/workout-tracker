@@ -190,6 +190,9 @@ class WorkoutOverlay extends StatelessWidget {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         return DraggableScrollableSheet(
+          minChildSize: 0.1,
+          maxChildSize: 0.9,
+          initialChildSize: 0.9,
           builder: (BuildContext context, ScrollController scrollController) {
             return Container(
               decoration: BoxDecoration(
@@ -207,9 +210,9 @@ class WorkoutOverlay extends StatelessWidget {
               child: CustomScrollView(
                 controller: scrollController,
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: _buildHandle(context, workoutState),
-                  ),
+                  // SliverToBoxAdapter(
+                  //   child: _buildHandle(context, workoutState),
+                  // ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),

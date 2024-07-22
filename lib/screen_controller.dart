@@ -37,10 +37,6 @@ class MainScreenState extends State<MainScreen> {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-        final visibilityFactor = 1.0 -
-            ((workoutState.overlayHeight - WorkoutState.minHeight) /
-                    (WorkoutState.maxHeight - WorkoutState.minHeight))
-                .clamp(0.0, 1.0);
         return Stack(
           children: [
             // Tab Views
@@ -59,10 +55,14 @@ class MainScreenState extends State<MainScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: (_tabBarHeight * visibilityFactor) + keyboardHeight,
+                bottom: _tabBarHeight > keyboardHeight
+                    ? _tabBarHeight
+                    : keyboardHeight,
                 child: SizedBox(
-                  height:
-                      MediaQuery.of(context).size.height - keyboardHeight - 90,
+                  height: MediaQuery.of(context).size.height -
+                      (_tabBarHeight > keyboardHeight
+                          ? _tabBarHeight
+                          : keyboardHeight),
                   child: const WorkoutOverlay(),
                 ),
               ),
@@ -71,7 +71,7 @@ class MainScreenState extends State<MainScreen> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: _buildTabBar(workoutState, visibilityFactor),
+              child: _buildTabBar(workoutState, 1),
             ),
           ],
         );
