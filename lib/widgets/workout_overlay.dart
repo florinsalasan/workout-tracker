@@ -14,28 +14,34 @@ import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
-  double _overlayHeight = 110; // Starting at minimized height
   // This list holds the exercises that the user is currently tracking in their workout
   final List<OverlayExercise> _exercises = [];
   DateTime? _workoutStartTime;
   int _currentTabIndex = 0;
+  bool _isOverlayCollapsed = false;
 
   bool get isWorkoutActive => _isWorkoutActive;
-  double get overlayHeight => _overlayHeight;
   List<OverlayExercise> get exercises => _exercises;
   int get currentTabIndex => _currentTabIndex;
-
-  static const double minHeight = 30;
-  static const double maxHeight = 800;
+  bool get isOverlayCollapsed => _isOverlayCollapsed;
 
   void setCurrentTabIndex(int index) {
     _currentTabIndex = index;
     notifyListeners();
   }
 
+  void collapseOverlay() {
+    _isOverlayCollapsed = true;
+    notifyListeners();
+  }
+
+  void expandOverlay() {
+    _isOverlayCollapsed = false;
+    notifyListeners();
+  }
+
   void startWorkout() {
     _isWorkoutActive = true;
-    _overlayHeight = maxHeight;
     _workoutStartTime = DateTime.now();
     notifyListeners();
   }
@@ -90,23 +96,8 @@ class WorkoutState extends ChangeNotifier {
   void cancelWorkout() {
     // end workout without saving anything, can't think of a better name tbh
     _isWorkoutActive = false;
-    _overlayHeight = minHeight;
     _exercises.clear();
     _workoutStartTime = null;
-    notifyListeners();
-  }
-
-  void updateOverlayHeight(double height) {
-    _overlayHeight = height.clamp(minHeight, maxHeight);
-    notifyListeners();
-  }
-
-  void snapOverlay() {
-    if (_overlayHeight > (minHeight + maxHeight) / 2) {
-      _overlayHeight = maxHeight;
-    } else {
-      _overlayHeight = minHeight;
-    }
     notifyListeners();
   }
 
@@ -210,25 +201,28 @@ class WorkoutOverlay extends StatelessWidget {
               child: CustomScrollView(
                 controller: scrollController,
                 slivers: [
-                  // SliverToBoxAdapter(
-                  //   child: _buildHandle(context, workoutState),
-                  // ),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        "Active Workout",
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                    ),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Active Workout",
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              const Expanded(
+                                child: Text(''),
+                              ),
+                              _buildEndWorkoutButton(context, workoutState),
+                            ])),
                   ),
                   _buildExerciseList(workoutState),
                   SliverToBoxAdapter(
                       child: _buildAddExerciseButton(context, workoutState)),
                   SliverToBoxAdapter(
                       child: _buildCancelWorkoutButton(context, workoutState)),
-                  SliverToBoxAdapter(
-                      child: _buildEndWorkoutButton(context, workoutState)),
                 ],
               ),
             );
@@ -262,18 +256,6 @@ class WorkoutOverlay extends StatelessWidget {
             }
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildHandle(BuildContext context, WorkoutState workoutState) {
-    return Container(
-      width: 40,
-      height: 5,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey3,
-        borderRadius: BorderRadius.circular(2.5),
       ),
     );
   }
