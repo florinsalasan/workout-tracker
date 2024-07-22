@@ -11,6 +11,7 @@ import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
+import 'package:workout_tracker/widgets/workout_timer.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
@@ -24,6 +25,7 @@ class WorkoutState extends ChangeNotifier {
   List<OverlayExercise> get exercises => _exercises;
   int get currentTabIndex => _currentTabIndex;
   bool get isOverlayCollapsed => _isOverlayCollapsed;
+  DateTime? get workoutStartTime => _workoutStartTime;
 
   void setCurrentTabIndex(int index) {
     _currentTabIndex = index;
@@ -207,11 +209,8 @@ class WorkoutOverlay extends StatelessWidget {
                         child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              Text(
-                                "Active Workout",
-                                style:
-                                    Theme.of(context).textTheme.headlineSmall,
-                              ),
+                              WorkoutTimer(
+                                  startTime: workoutState.workoutStartTime),
                               const Expanded(
                                 child: Text(''),
                               ),

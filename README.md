@@ -15,7 +15,7 @@ A workout tracking app with a long list of features that need to be implemented.
 ### Basic Functionality:
 
 - [ ] Add a warning on ending a workout for any sets not marked as complete and have user decide whether to have them deleted or saved as 0 reps.
-- [ ] Display a live timer on the overlay handle in place of the 'Active Workout' label
+- [x] Display a live timer on the overlay handle in place of the 'Active Workout' label
 - [ ] Saving workout templates
 - [ ] Once templates are implemented, launch workouts from templates with exercises and sets pre-added rather than needing the user to add them all
 - [x] Showcase previous weight x reps for each relevant set inside the overlay to give users an idea of how to progress
