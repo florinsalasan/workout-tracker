@@ -116,7 +116,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
       widget.exerciseIndex,
       widget.setIndex,
       weightInGrams,
-      // double.tryParse(_weightController.text) ?? 0,
       int.tryParse(_repsController.text) ?? 0,
       widget.isCompleted,
     );
@@ -131,9 +130,6 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
             workoutState.getSet(widget.exerciseIndex, widget.setIndex);
 
         // Update controllers if the state has changed externally
-        // if (currentSet.weight.toString() != _weightController.text) {
-        //   _weightController.text = currentSet.weight.toString();
-        // }
         if (currentSet.weight !=
             WeightConverter.convertToGrams(
                 double.parse(_weightController.text), weightUnit)) {

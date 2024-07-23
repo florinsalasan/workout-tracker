@@ -239,7 +239,7 @@ class DatabaseHelper {
       final workout = CompletedWorkout.fromMap(workoutMap);
       final exerciseMaps = await db.query(
         'completed_exercises',
-        where: 'workoutId = ?',
+        where: 'workout_id = ?',
         whereArgs: [workout.id],
       );
 

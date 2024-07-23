@@ -15,7 +15,7 @@ class CompletedWorkout {
     return {
       'id': id,
       'date': date.toIso8601String(),
-      'durationInSeconds': durationInSeconds,
+      'duration_in_seconds': durationInSeconds,
     };
   }
 
@@ -24,7 +24,7 @@ class CompletedWorkout {
       id: map['id'],
       date: DateTime.parse(map['date']),
       exercises: [], // We'll populate this when we fetch the workout
-      durationInSeconds: map['durationInSeconds'],
+      durationInSeconds: map['duration_in_seconds'],
     );
   }
 }
@@ -45,7 +45,7 @@ class CompletedExercise {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'workoutId': workoutId,
+      'workout_id': workoutId,
       'name': name,
     };
   }
@@ -53,7 +53,7 @@ class CompletedExercise {
   factory CompletedExercise.fromMap(Map<String, dynamic> map) {
     return CompletedExercise(
       id: map['id'],
-      workoutId: map['workoutId'],
+      workoutId: map['workout_id'],
       name: map['name'],
       sets: [], // We'll populate this when we fetch the exercise
     );
@@ -76,7 +76,7 @@ class CompletedSet {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'exerciseId': exerciseId,
+      'exercise_id': exerciseId,
       'reps': reps,
       'weight': weight,
     };
@@ -85,7 +85,7 @@ class CompletedSet {
   factory CompletedSet.fromMap(Map<String, dynamic> map) {
     return CompletedSet(
       id: map['id'],
-      exerciseId: map['exerciseId'],
+      exerciseId: map['exercise_id'],
       reps: map['reps'],
       weight: map['weight'],
     );
