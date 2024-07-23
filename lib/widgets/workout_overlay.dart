@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 // import 'package:workout_tracker/providers/user_preferences_provider.dart';
 // import 'package:workout_tracker/services/mass_unit_conversions.dart';
@@ -21,12 +22,29 @@ class WorkoutState extends ChangeNotifier {
   DateTime? _workoutStartTime;
   int _currentTabIndex = 0;
   bool _isOverlayCollapsed = false;
+  late UserPreferences _userPreferences;
 
   bool get isWorkoutActive => _isWorkoutActive;
   List<OverlayExercise> get exercises => _exercises;
   int get currentTabIndex => _currentTabIndex;
   bool get isOverlayCollapsed => _isOverlayCollapsed;
   DateTime? get workoutStartTime => _workoutStartTime;
+
+  WorkoutState() {
+    _userPreferences = UserPreferences();
+    _userPreferences.addListener(_onWeightUnitChanged);
+  }
+
+  @override
+  void dispose() {
+    _userPreferences.removeListener(_onWeightUnitChanged);
+    super.dispose();
+  }
+
+  void _onWeightUnitChanged() {
+    // Notify listeners to rebuild widgets with new weight unit
+    notifyListeners();
+  }
 
   void setCurrentTabIndex(int index) {
     _currentTabIndex = index;
