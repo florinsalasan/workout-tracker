@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
+import '../models/workout_model.dart';
+import '../services/db_helpers.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -62,16 +65,18 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8.0),
                       // Add your template buttons or grid here
-                      const Text('No templates available.'),
                       SizedBox(
                         width: double.infinity,
                         child: CupertinoButton(
                           child: const Text('Create Template'),
                           onPressed: () {
-                            // Navigate to template creation screen
+                            context
+                                .read<WorkoutState>()
+                                .startWorkout(isTemplateCreation: true);
                           },
                         ),
                       ),
+                      _buildTemplateSection(context),
                     ],
                   ),
                 ),
@@ -79,5 +84,47 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ));
+  }
+
+  Widget _buildTemplateSection(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: DatabaseHelper.instance.getWorkoutTemplates(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CupertinoActivityIndicator();
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Text(
+            "No templates available",
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Workout Templates",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ...snapshot.data!.map((template) => CupertinoButton(
+                  onPressed: () => _startWorkoutFromTemplate(
+                      context, CompletedWorkout.fromMap(template)),
+                  child: Text(template['template_name'] ?? "Unnamed Template"),
+                )),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startWorkoutFromTemplate(
+      BuildContext context, CompletedWorkout template) {
+    final workoutState = Provider.of<WorkoutState>(context, listen: false);
+    workoutState.startWorkout();
+    // Populate workout state with template data
+    for (var exercise in template.exercises) {
+      workoutState.addExercise(exercise.name, context);
+      for (var set in exercise.sets) {
+        workoutState.addSet(
+            workoutState.exercises.length - 1, set.weight, set.reps);
+      }
+    }
   }
 }

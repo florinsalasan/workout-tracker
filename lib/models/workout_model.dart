@@ -3,12 +3,14 @@ class CompletedWorkout {
   final DateTime date;
   List<CompletedExercise> exercises;
   final int durationInSeconds;
+  final String? name;
 
   CompletedWorkout({
     this.id,
     required this.date,
     required this.exercises,
     required this.durationInSeconds,
+    this.name,
   });
 
   Map<String, dynamic> toMap() {
@@ -16,6 +18,7 @@ class CompletedWorkout {
       'id': id,
       'date': date.toIso8601String(),
       'duration_in_seconds': durationInSeconds,
+      'name': name,
     };
   }
 
@@ -25,6 +28,7 @@ class CompletedWorkout {
       date: DateTime.parse(map['date']),
       exercises: [], // We'll populate this when we fetch the workout
       durationInSeconds: map['duration_in_seconds'],
+      name: map['name'],
     );
   }
 }

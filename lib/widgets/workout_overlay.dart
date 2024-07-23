@@ -15,6 +15,7 @@ import 'package:workout_tracker/widgets/workout_timer.dart';
 
 class WorkoutState extends ChangeNotifier {
   bool _isWorkoutActive = false;
+  bool _isTemplateCreation = false;
   // This list holds the exercises that the user is currently tracking in their workout
   final List<OverlayExercise> _exercises = [];
   DateTime? _workoutStartTime;
@@ -42,9 +43,12 @@ class WorkoutState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void startWorkout() {
+  void startWorkout({bool isTemplateCreation = false}) {
     _isWorkoutActive = true;
     _workoutStartTime = DateTime.now();
+    _isTemplateCreation = isTemplateCreation;
+    print(
+        '_isTemplateCreation from startWorkout in WorkoutState class: $_isTemplateCreation');
     notifyListeners();
   }
 
@@ -81,7 +85,22 @@ class WorkoutState extends ChangeNotifier {
 
     try {
       final dbHelper = DatabaseHelper.instance;
-      final workoutId = await dbHelper.insertCompletedWorkout(completedWorkout);
+      late int workoutId;
+
+      print('isTemplate: $_isTemplateCreation');
+
+      if (_isTemplateCreation) {
+        final templateName = await _showTemplateNameDialog(context);
+        if (templateName != null) {
+          workoutId = await dbHelper.insertCompletedWorkout(completedWorkout,
+              templateName: templateName);
+        } else {
+          workoutId = await dbHelper.insertCompletedWorkout(completedWorkout);
+        }
+      } else {
+        workoutId = await dbHelper.insertCompletedWorkout(completedWorkout);
+      }
+
       await dbHelper.checkAndUpdatePersonalBests(workoutId);
 
       // Verify the save by retrieving the workout
@@ -93,6 +112,36 @@ class WorkoutState extends ChangeNotifier {
     historyProvider.addCompletedWorkout(completedWorkout);
     notifyListeners();
     cancelWorkout();
+  }
+
+  Future<String?> _showTemplateNameDialog(BuildContext context) async {
+    final TextEditingController textController = TextEditingController();
+
+    return await showCupertinoDialog<String>(
+      context: context,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Name Your Template'),
+        content: CupertinoTextField(
+          controller: textController,
+          placeholder: 'Enter template name',
+          autofocus: true,
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            child: const Text('Save'),
+            onPressed: () {
+              final String templateName = textController.text.trim();
+              Navigator.pop(context,
+                  templateName.isNotEmpty ? templateName : 'Untitled Template');
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void cancelWorkout() {
@@ -321,8 +370,8 @@ class WorkoutOverlay extends StatelessWidget {
             CupertinoDialogAction(
                 isDefaultAction: true,
                 onPressed: () => {
-                      workoutState.endWorkout(context, historyProvider),
                       Navigator.pop(context),
+                      workoutState.endWorkout(context, historyProvider),
                     },
                 child: const Text("End Workout")),
           ],

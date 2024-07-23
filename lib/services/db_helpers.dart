@@ -61,8 +61,16 @@ class DatabaseHelper {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       duration_in_seconds INTEGER NOT NULL,
-      is_template BOOLEAN NOT NULL DEFAULT 0
+      name TEXT
     )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE workout_templates(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workout_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      FOREIGN KEY (workout_id) REFERENCES completed_workouts (id) ON DELETE CASCADE)
     ''');
 
     await db.execute('''
@@ -150,7 +158,8 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> insertCompletedWorkout(CompletedWorkout workout) async {
+  Future<int> insertCompletedWorkout(CompletedWorkout workout,
+      {String? templateName}) async {
     final db = await database;
 
     return await db.transaction((txn) async {
@@ -171,6 +180,12 @@ class DatabaseHelper {
           };
           await txn.insert('completed_sets', setMap);
         }
+      }
+      if (templateName != null) {
+        await txn.insert('workout_templates', {
+          'workout_id': workoutId,
+          'name': templateName,
+        });
       }
       return workoutId;
     });
@@ -258,6 +273,15 @@ class DatabaseHelper {
 
       return workout;
     }));
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkoutTemplates() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT wt.id as template_id, wt.name as template_name, cw.*
+      FROM workout_templates wt
+      JOIN completed_workouts cw ON wt.workout_id = cw.id
+    ''');
   }
 
   Future<List<CompletedSet>> getLastCompletedSets(String exerciseName) async {
