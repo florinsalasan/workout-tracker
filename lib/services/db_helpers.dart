@@ -40,13 +40,13 @@ class DatabaseHelper {
       CREATE TABLE exercises(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        isCustom INTEGER NOT NULL
+        is_custom INTEGER NOT NULL
       )
     ''');
 
     // Insert default exercises
     await db.execute('''
-      INSERT INTO exercises (name, isCustom) VALUES
+      INSERT INTO exercises (name, is_custom) VALUES
       ('Squat (Barbell)', 0),
       ('Bench Press (Dumbbell)', 0),
       ('Incline Bench Press (Dumbbell)', 0),
@@ -60,45 +60,46 @@ class DatabaseHelper {
     CREATE TABLE completed_workouts(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
-      durationInSeconds INTEGER NOT NULL
+      duration_in_seconds INTEGER NOT NULL,
+      is_template BOOLEAN NOT NULL DEFAULT 0
     )
     ''');
 
     await db.execute('''
     CREATE TABLE completed_exercises(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      workoutId INTEGER NOT NULL,
+      workout_id INTEGER NOT NULL,
       name TEXT NOT NULL,
-      FOREIGN KEY (workoutId) REFERENCES completed_workouts (id) ON DELETE CASCADE
+      FOREIGN KEY (workout_id) REFERENCES completed_workouts (id) ON DELETE CASCADE
     )
     ''');
 
     await db.execute('''
     CREATE TABLE completed_sets(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      exerciseId INTEGER NOT NULL,
+      exercise_id INTEGER NOT NULL,
       reps INTEGER NOT NULL,
       weight REAL NOT NULL,
-      FOREIGN KEY (exerciseId) REFERENCES completed_exercises (id) ON DELETE CASCADE
+      FOREIGN KEY (exercise_id) REFERENCES completed_exercises (id) ON DELETE CASCADE
     )
     ''');
 
     await db.execute('''
     CREATE TABLE personal_bests(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      exerciseId INTEGER NOT NULL,
+      exercise_id INTEGER NOT NULL,
       reps INTEGER NOT NULL,
       weight REAL NOT NULL,
       date TEXT NOT NULL,
       type TEXT NOT NULL DEFAULT 'rep_based',
       total_weight REAL,
-      FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE
+      FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
     )
     ''');
 
     await db.execute('''
     CREATE UNIQUE INDEX idx_personal_bests_unique 
-    ON personal_bests (exerciseId, reps, type)
+    ON personal_bests (exercise_id, reps, type)
     ''');
 
     await db.execute('''
@@ -110,11 +111,11 @@ class DatabaseHelper {
 
     await db.execute('''
     CREATE TABLE exercise_tag_relations(
-      exerciseId INTEGER NOT NULL, 
-      tagId INTEGER NOT NULL,
-      PRIMARY KEY (exerciseId, tagId),
-      FOREIGN KEY (exerciseId) REFERENCES exercises (id) ON DELETE CASCADE,
-      FOREIGN KEY (tagId) REFERENCES exercise_tags (id) ON DELETE CASCADE
+      exercise_id INTEGER NOT NULL, 
+      tag_id INTEGER NOT NULL,
+      PRIMARY KEY (exercise_id, tag_id),
+      FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES exercise_tags (id) ON DELETE CASCADE
     )
     ''');
   }
@@ -151,8 +152,6 @@ class DatabaseHelper {
 
   Future<int> insertCompletedWorkout(CompletedWorkout workout) async {
     final db = await database;
-    // final userPreferences = UserPreferences();
-    // final weightUnit = userPreferences.weightUnit;
 
     return await db.transaction((txn) async {
       // Insert the workout
@@ -160,23 +159,19 @@ class DatabaseHelper {
 
       // Insert each exercise
       for (var exercise in workout.exercises) {
-        final exerciseMap = exercise.toMap()..['workoutId'] = workoutId;
+        final exerciseMap = exercise.toMap()..['workout_id'] = workoutId;
         final exerciseId = await txn.insert('completed_exercises', exerciseMap);
 
         // Insert each set
         for (var set in exercise.sets) {
-          // final weightInGrams =
-          //     WeightConverter.convertToGrams(set.weight, weightUnit);
           final setMap = {
-            'exerciseId': exerciseId,
+            'exercise_id': exerciseId,
             'reps': set.reps,
-            // 'weight': weightInGrams,
             'weight': set.weight,
           };
           await txn.insert('completed_sets', setMap);
         }
       }
-
       return workoutId;
     });
   }
@@ -208,7 +203,7 @@ class DatabaseHelper {
     final workout = CompletedWorkout.fromMap(workoutMaps.first);
     final exerciseMaps = await db.query(
       'completed_exercises',
-      where: 'workoutId = ?',
+      where: 'workout_id = ?',
       whereArgs: [id],
     );
 
@@ -216,7 +211,7 @@ class DatabaseHelper {
       final exercise = CompletedExercise.fromMap(exerciseMap);
       final setMaps = await db.query(
         'completed_sets',
-        where: 'exerciseId = ?',
+        where: 'exercise_id = ?',
         whereArgs: [exercise.id],
       );
       exercise.sets = setMaps.map((setMap) {
@@ -224,7 +219,7 @@ class DatabaseHelper {
         final convertedWeight =
             WeightConverter.convertFromGrams(weightInGrams, weightUnit);
         return CompletedSet(
-          exerciseId: setMap['exerciseId'] as int?,
+          exerciseId: setMap['exercise_id'] as int?,
           reps: setMap['reps'] as int,
           weight: convertedWeight,
         );
@@ -253,7 +248,7 @@ class DatabaseHelper {
         final exercise = CompletedExercise.fromMap(exerciseMap);
         final setMaps = await db.query(
           'completed_sets',
-          where: 'exerciseId = ?',
+          where: 'exercise_id = ?',
           whereArgs: [exercise.id],
         );
         exercise.sets =
@@ -270,12 +265,12 @@ class DatabaseHelper {
     final results = await db.rawQuery('''
       SELECT cs.*
       FROM completed_sets cs
-      JOIN completed_exercises ce ON cs.exerciseId = ce.id
-      JOIN completed_workouts cw ON ce.workoutId = cw.id
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw ON ce.workout_id = cw.id
       WHERE ce.name = ? AND cw.id = (
         SELECT MAX(cw2.id)
         FROM completed_workouts cw2
-        JOIN completed_exercises ce2 ON cw2.id = ce2.workoutId
+        JOIN completed_exercises ce2 ON cw2.id = ce2.workout_id
         WHERE ce2.name = ?
       )
       ORDER BY cs.id 
@@ -299,7 +294,7 @@ class DatabaseHelper {
     final db = await database;
     final results = await db.query(
       'personal_bests',
-      where: 'exerciseId = ?',
+      where: 'exercise_id = ?',
       whereArgs: [exerciseId],
       orderBy: 'reps ASC',
     );
@@ -324,8 +319,8 @@ class DatabaseHelper {
   Future<void> addTagToExercise(int exerciseId, int tagId) async {
     final db = await database;
     await db.insert('exercise_tag_relations', {
-      'exerciseId': exerciseId,
-      'tagId': tagId,
+      'exercise_id': exerciseId,
+      'tag_id': tagId,
     });
   }
 
@@ -334,8 +329,8 @@ class DatabaseHelper {
     final results = await db.rawQuery('''
       SELECT et.name
       FROM exercise_tags et
-      JOIN exercise_tag_relations etr ON et.id = etr.tagId
-      WHERE etr.exerciseId = ?
+      JOIN exercise_tag_relations etr ON et.id = etr.tag_id
+      WHERE etr.exercise_id = ?
     ''', [exerciseId]);
     return results.map((map) => map['name'] as String).toList();
   }
@@ -356,7 +351,7 @@ class DatabaseHelper {
     await db.transaction((txn) async {
       final exercises = await txn.query(
         'completed_exercises',
-        where: 'workoutId = ?',
+        where: 'workout_id = ?',
         whereArgs: [workoutId],
       );
 
@@ -382,7 +377,7 @@ class DatabaseHelper {
 
         final sets = await txn.query(
           'completed_sets',
-          where: 'exerciseId = ?',
+          where: 'exercise_id = ?',
           whereArgs: [exerciseId],
         );
 
@@ -392,7 +387,7 @@ class DatabaseHelper {
 
           final existingPBs = await txn.query(
             'personal_bests',
-            where: 'exerciseId = ? AND reps <= ? AND type = ?',
+            where: 'exercise_id = ? AND reps <= ? AND type = ?',
             whereArgs: [baseExerciseId, reps, 'rep_based'],
             orderBy: 'reps DESC',
           );
@@ -408,7 +403,7 @@ class DatabaseHelper {
               await txn.insert(
                 'personal_bests',
                 {
-                  'exerciseId': baseExerciseId,
+                  'exercise_id': baseExerciseId,
                   'reps': i,
                   'weight': weight,
                   'date': DateTime.now().toIso8601String(),
@@ -441,7 +436,7 @@ class DatabaseHelper {
           await txn.insert(
             'personal_bests',
             {
-              'exerciseId': baseExerciseId,
+              'exercise_id': baseExerciseId,
               'reps': totalWeightSet['reps'],
               'weight': totalWeightSet['weight'],
               'date': DateTime.now().toIso8601String(),
@@ -460,36 +455,13 @@ class DatabaseHelper {
     final results = await db.rawQuery('''
       SELECT ce.*, cs.reps, cs.weight, cw.date
       FROM completed_exercises ce
-      JOIN completed_sets cs ON ce.id = cs.exerciseId
-      JOIN completed_workouts cw ON ce.workoutId = cw.id
+      JOIN completed_sets cs ON ce.id = cs.exercise_id
+      JOIN completed_workouts cw ON ce.workout_id = cw.id
       WHERE ce.name = (SELECT name FROM exercises WHERE id = ?)
       ORDER BY cw.date DESC
     ''', [exerciseId]);
 
     return results;
-    // Map<String, CompletedExercise> exerciseMap = {};
-
-    // for (var row in results) {
-    //   final date = DateTime.parse(row['date'] as String);
-    //   final dateString = date.toIso8601String().split('T')[0];
-
-    //   if (!exerciseMap.containsKey(dateString)) {
-    //     exerciseMap[dateString] = CompletedExercise(
-    //       id: row['id'] as int,
-    //       workoutId: row['workoutId'] as int,
-    //       name: row['name'] as String,
-    //       sets: [],
-    //     );
-    //   }
-
-    //   exerciseMap[dateString]!.sets.add(CompletedSet(
-    //         exerciseId: row['exerciseId'] as int,
-    //         reps: row['reps'] as int,
-    //         weight: row['weight'] as double,
-    //       ));
-    // }
-
-    // return exerciseMap.values.toList();
   }
 
   Future<Map<String, dynamic>> getExercisePersonalBests(int exerciseId) async {
@@ -498,7 +470,7 @@ class DatabaseHelper {
     // Get the best total (weight x reps)
     final bestTotalResult = await db.query(
       'personal_bests',
-      where: 'exerciseId = ? AND type = ?',
+      where: 'exercise_id = ? AND type = ?',
       whereArgs: [exerciseId, 'overall_weight'],
       orderBy: 'total_weight DESC',
       limit: 1,
@@ -507,21 +479,21 @@ class DatabaseHelper {
     // Get the heaviest weight (1 rep max)
     final heaviestWeightResult = await db.query(
       'personal_bests',
-      where: 'exerciseId = ? AND type = ?',
+      where: 'exercise_id = ? AND type = ?',
       whereArgs: [exerciseId, 'rep_based'],
       orderBy: 'weight DESC',
       limit: 1,
     );
 
     return {
-      'bestTotal': bestTotalResult.isNotEmpty
+      'best_total': bestTotalResult.isNotEmpty
           ? {
               'weight': bestTotalResult.first['weight'],
               'reps': bestTotalResult.first['reps'],
               'total': bestTotalResult.first['total_weight'],
             }
           : null,
-      'heaviestWeight': heaviestWeightResult.isNotEmpty
+      'heaviest_weight': heaviestWeightResult.isNotEmpty
           ? {
               'weight': heaviestWeightResult.first['weight'],
               'reps': heaviestWeightResult.first['reps'],
@@ -534,7 +506,7 @@ class DatabaseHelper {
     final db = await database;
     final results = await db.query(
       'personal_bests',
-      where: 'exerciseId = ? AND type = ?',
+      where: 'exercise_id = ? AND type = ?',
       whereArgs: [exerciseId, 'rep_based'],
       orderBy: 'reps ASC',
     );
@@ -554,7 +526,7 @@ class Exercise {
     return {
       'id': id,
       'name': name,
-      'isCustom': isCustom ? 1 : 0,
+      'is_custom': isCustom ? 1 : 0,
     };
   }
 
@@ -562,7 +534,7 @@ class Exercise {
     return Exercise(
       id: map['id'],
       name: map['name'],
-      isCustom: map['isCustom'] == 1,
+      isCustom: map['is_custom'] == 1,
     );
   }
 }
@@ -591,8 +563,8 @@ class PersonalBest {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'exerciseId': exerciseId,
-      'workoutId': workoutId,
+      'exercise_id': exerciseId,
+      'workout_id': workoutId,
       'reps': reps,
       'weight': weight,
       'date': date,
@@ -604,8 +576,8 @@ class PersonalBest {
   static PersonalBest fromMap(Map<String, dynamic> map) {
     return PersonalBest(
       id: map['id'] as int?,
-      exerciseId: map['exerciseId'] as int? ?? 0,
-      workoutId: map['workoutId'] as int? ?? 0,
+      exerciseId: map['exercise_id'] as int? ?? 0,
+      workoutId: map['workout_id'] as int? ?? 0,
       reps: map['reps'] as int? ?? 0,
       weight: (map['weight'] as num?)?.toDouble() ?? 0.0,
       date: map['date'] as String? ?? '',
