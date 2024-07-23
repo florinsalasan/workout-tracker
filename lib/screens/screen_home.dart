@@ -5,6 +5,7 @@ import 'package:workout_tracker/widgets/workout_overlay.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
 import '../models/workout_model.dart';
+import '../providers/history_provider.dart';
 import '../services/db_helpers.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -87,43 +88,53 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildTemplateSection(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: DatabaseHelper.instance.getWorkoutTemplates(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CupertinoActivityIndicator();
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Text(
-            "No templates available",
+    return Consumer<HistoryProvider>(
+        builder: (context, historyProvider, child) {
+      return FutureBuilder<List<Map<String, dynamic>>>(
+        future: DatabaseHelper.instance.getWorkoutTemplates(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const CupertinoActivityIndicator();
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Text(
+              "No templates available",
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Workout Templates",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ...snapshot.data!.map((template) => CupertinoButton(
+                    onPressed: () => _startWorkoutFromTemplate(
+                        context, CompletedWorkout.fromMap(template)),
+                    child:
+                        Text(template['template_name'] ?? "Unnamed Template"),
+                  )),
+            ],
           );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Workout Templates",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            ...snapshot.data!.map((template) => CupertinoButton(
-                  onPressed: () => _startWorkoutFromTemplate(
-                      context, CompletedWorkout.fromMap(template)),
-                  child: Text(template['template_name'] ?? "Unnamed Template"),
-                )),
-          ],
-        );
-      },
-    );
+        },
+      );
+    });
   }
 
   void _startWorkoutFromTemplate(
-      BuildContext context, CompletedWorkout template) {
+      BuildContext context, CompletedWorkout template) async {
     final workoutState = Provider.of<WorkoutState>(context, listen: false);
+    final dbHelper = DatabaseHelper.instance;
+    final allWorkouts = await dbHelper.getAllCompletedWorkouts();
+    final workoutTemplate =
+        allWorkouts.where((currWorkout) => currWorkout.id == template.id);
+
     workoutState.startWorkout();
     // Populate workout state with template data
-    for (var exercise in template.exercises) {
+    for (var exercise in workoutTemplate.first.exercises) {
+      if (!context.mounted) return;
       workoutState.addExercise(exercise.name, context);
       for (var set in exercise.sets) {
         workoutState.addSet(
-            workoutState.exercises.length - 1, set.weight, set.reps);
+            workoutState.exercises.length, set.weight, set.reps);
       }
     }
   }

@@ -47,8 +47,6 @@ class WorkoutState extends ChangeNotifier {
     _isWorkoutActive = true;
     _workoutStartTime = DateTime.now();
     _isTemplateCreation = isTemplateCreation;
-    print(
-        '_isTemplateCreation from startWorkout in WorkoutState class: $_isTemplateCreation');
     notifyListeners();
   }
 
@@ -86,8 +84,6 @@ class WorkoutState extends ChangeNotifier {
     try {
       final dbHelper = DatabaseHelper.instance;
       late int workoutId;
-
-      print('isTemplate: $_isTemplateCreation');
 
       if (_isTemplateCreation) {
         final templateName = await _showTemplateNameDialog(context);
