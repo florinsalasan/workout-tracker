@@ -143,9 +143,11 @@ class HomeScreen extends StatelessWidget {
                           (workout) => workout.id == template['id'],
                           orElse: () => CompletedWorkout.fromMap(template),
                         );
-
+                        print(
+                            'template: $template, fullTemplate: ${fullTemplate.exercises}');
                         return TemplatePreviewCard(
                           template: fullTemplate,
+                          templateId: template['template_id'],
                           name: template['template_name'],
                           onTap: () =>
                               _startWorkoutFromTemplate(context, fullTemplate),

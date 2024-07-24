@@ -284,6 +284,25 @@ class DatabaseHelper {
     ''');
   }
 
+  Future<int> deleteWorkoutTemplate(int templateId) async {
+    final db = await database;
+    return await db.delete(
+      'workout_templates',
+      where: 'id = ?',
+      whereArgs: [templateId],
+    );
+  }
+
+  Future<int> renameWorkoutTemplate(int templateId, String newName) async {
+    final db = await database;
+    return await db.update(
+      'workout_templates',
+      {'name': newName},
+      where: 'id = ?',
+      whereArgs: [templateId],
+    );
+  }
+
   Future<List<CompletedSet>> getLastCompletedSets(String exerciseName) async {
     final db = await database;
     final results = await db.rawQuery('''

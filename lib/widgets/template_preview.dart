@@ -1,15 +1,19 @@
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+import 'package:workout_tracker/providers/history_provider.dart';
 
 import '../models/workout_model.dart';
 
 class TemplatePreviewCard extends StatelessWidget {
   final CompletedWorkout template;
+  final int templateId;
   final String name;
   final VoidCallback onTap;
 
   const TemplatePreviewCard({
     super.key,
     required this.template,
+    required this.templateId,
     required this.name,
     required this.onTap,
   });
@@ -19,8 +23,12 @@ class TemplatePreviewCard extends StatelessWidget {
     return CupertinoContextMenu(
       enableHapticFeedback: true,
       actions: <Widget>[
-        const CupertinoContextMenuAction(
-          child: Text(
+        CupertinoContextMenuAction(
+          onPressed: () {
+            _renameTemplate(context);
+            // Navigator.pop(context);
+          },
+          child: const Text(
             'Rename Template',
           ),
         ),
@@ -79,8 +87,64 @@ class TemplatePreviewCard extends StatelessWidget {
       ),
     );
   }
-}
 
-void _removeTemplate(BuildContext context) {
-  // want to remove the id from workout_templates table should be fine I think
+  void _removeTemplate(BuildContext context) async {
+    final historyProvider =
+        Provider.of<HistoryProvider>(context, listen: false);
+
+    // Show a confirmation dialog
+    final bool? confirm = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Delete Template'),
+        content: const Text('Are you sure you want to delete this template?'),
+        actions: <CupertinoDialogAction>[
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await historyProvider.deleteTemplate(templateId);
+    }
+  }
+
+  void _renameTemplate(BuildContext context) async {
+    final historyProvider =
+        Provider.of<HistoryProvider>(context, listen: false);
+    String newName = name;
+
+    // Show a dialog to input the new name
+    await showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Rename Template'),
+        content: CupertinoTextField(
+          controller: TextEditingController(text: name),
+          onChanged: (value) => newName = value,
+        ),
+        actions: <CupertinoDialogAction>[
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          CupertinoDialogAction(
+            onPressed: () async {
+              await historyProvider.renameTemplate(templateId, newName);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
 }
