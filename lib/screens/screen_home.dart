@@ -88,38 +88,6 @@ class HomeScreen extends StatelessWidget {
         ));
   }
 
-  // Widget _buildTemplateSection(BuildContext context) {
-  //   return Consumer<HistoryProvider>(
-  //       builder: (context, historyProvider, child) {
-  //     return FutureBuilder<List<Map<String, dynamic>>>(
-  //       future: DatabaseHelper.instance.getWorkoutTemplates(),
-  //       builder: (context, snapshot) {
-  //         if (snapshot.connectionState == ConnectionState.waiting) {
-  //           return const CupertinoActivityIndicator();
-  //         }
-  //         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-  //           return const Text(
-  //             "No templates available",
-  //           );
-  //         }
-  //         return Column(
-  //           crossAxisAlignment: CrossAxisAlignment.start,
-  //           children: [
-  //             const Text("Workout Templates",
-  //                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-  //             ...snapshot.data!.map((template) => CupertinoButton(
-  //                   onPressed: () => _startWorkoutFromTemplate(
-  //                       context, CompletedWorkout.fromMap(template)),
-  //                   child:
-  //                       Text(template['template_name'] ?? "Unnamed Template"),
-  //                 )),
-  //           ],
-  //         );
-  //       },
-  //     );
-  //   });
-  // }
-
   Widget _buildTemplateSection(BuildContext context) {
     return Consumer<HistoryProvider>(
       builder: (context, historyProvider, child) {
