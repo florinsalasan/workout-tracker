@@ -3,7 +3,7 @@ class CompletedWorkout {
   final DateTime date;
   List<CompletedExercise> exercises;
   final int durationInSeconds;
-  final String? name;
+  String? name;
 
   CompletedWorkout({
     this.id,

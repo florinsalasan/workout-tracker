@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
+import '../widgets/template_preview.dart';
 import '../models/workout_model.dart';
 import '../providers/history_provider.dart';
 import '../services/db_helpers.dart';
@@ -87,36 +88,110 @@ class HomeScreen extends StatelessWidget {
         ));
   }
 
+  // Widget _buildTemplateSection(BuildContext context) {
+  //   return Consumer<HistoryProvider>(
+  //       builder: (context, historyProvider, child) {
+  //     return FutureBuilder<List<Map<String, dynamic>>>(
+  //       future: DatabaseHelper.instance.getWorkoutTemplates(),
+  //       builder: (context, snapshot) {
+  //         if (snapshot.connectionState == ConnectionState.waiting) {
+  //           return const CupertinoActivityIndicator();
+  //         }
+  //         if (!snapshot.hasData || snapshot.data!.isEmpty) {
+  //           return const Text(
+  //             "No templates available",
+  //           );
+  //         }
+  //         return Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             const Text("Workout Templates",
+  //                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+  //             ...snapshot.data!.map((template) => CupertinoButton(
+  //                   onPressed: () => _startWorkoutFromTemplate(
+  //                       context, CompletedWorkout.fromMap(template)),
+  //                   child:
+  //                       Text(template['template_name'] ?? "Unnamed Template"),
+  //                 )),
+  //           ],
+  //         );
+  //       },
+  //     );
+  //   });
+  // }
+
   Widget _buildTemplateSection(BuildContext context) {
     return Consumer<HistoryProvider>(
-        builder: (context, historyProvider, child) {
-      return FutureBuilder<List<Map<String, dynamic>>>(
-        future: DatabaseHelper.instance.getWorkoutTemplates(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const CupertinoActivityIndicator();
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Text(
-              "No templates available",
+      builder: (context, historyProvider, child) {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: DatabaseHelper.instance.getWorkoutTemplates(),
+          builder: (context, templateSnapshot) {
+            if (templateSnapshot.connectionState == ConnectionState.waiting) {
+              return const CupertinoActivityIndicator();
+            }
+            if (!templateSnapshot.hasData || templateSnapshot.data!.isEmpty) {
+              return const Text(
+                "No templates available",
+              );
+            }
+
+            return FutureBuilder<List<CompletedWorkout>>(
+              future: DatabaseHelper.instance.getAllCompletedWorkouts(),
+              builder: (context, workoutSnapshot) {
+                if (workoutSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const CupertinoActivityIndicator();
+                }
+                if (!workoutSnapshot.hasData) {
+                  return const Text("Error loading workouts");
+                }
+
+                final templates = templateSnapshot.data!;
+                final allWorkouts = workoutSnapshot.data!;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Workout Templates",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.5,
+                      ),
+                      itemCount: templates.length,
+                      itemBuilder: (context, index) {
+                        final template = templates[index];
+                        final fullTemplate = allWorkouts.firstWhere(
+                          (workout) => workout.id == template['id'],
+                          orElse: () => CompletedWorkout.fromMap(template),
+                        );
+
+                        return TemplatePreviewCard(
+                          template: fullTemplate,
+                          name: template['template_name'],
+                          onTap: () =>
+                              _startWorkoutFromTemplate(context, fullTemplate),
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
             );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Workout Templates",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ...snapshot.data!.map((template) => CupertinoButton(
-                    onPressed: () => _startWorkoutFromTemplate(
-                        context, CompletedWorkout.fromMap(template)),
-                    child:
-                        Text(template['template_name'] ?? "Unnamed Template"),
-                  )),
-            ],
-          );
-        },
-      );
-    });
+          },
+        );
+      },
+    );
   }
 
   void _startWorkoutFromTemplate(
