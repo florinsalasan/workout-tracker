@@ -139,7 +139,9 @@ class TemplatePreviewCard extends StatelessWidget {
           CupertinoDialogAction(
             onPressed: () async {
               await historyProvider.renameTemplate(templateId, newName);
-              Navigator.of(context).pop();
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
             },
             child: const Text('Rename'),
           ),

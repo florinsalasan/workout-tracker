@@ -36,8 +36,7 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 6.0),
                       SizedBox(
                         height: 35.0,
-                        width: double
-                            .infinity, // Makes the button take full width of the parent
+                        width: double.infinity,
                         child: CupertinoButton.filled(
                           padding: const EdgeInsets.all(0),
                           child: const Text(
@@ -59,25 +58,7 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Templates',
-                        style: CupertinoTheme.of(context)
-                            .textTheme
-                            .navTitleTextStyle,
-                      ),
-                      const SizedBox(height: 8.0),
                       // Add your template buttons or grid here
-                      SizedBox(
-                        width: double.infinity,
-                        child: CupertinoButton(
-                          child: const Text('Create Template'),
-                          onPressed: () {
-                            context
-                                .read<WorkoutState>()
-                                .startWorkout(isTemplateCreation: true);
-                          },
-                        ),
-                      ),
                       _buildTemplateSection(context),
                     ],
                   ),
@@ -98,8 +79,31 @@ class HomeScreen extends StatelessWidget {
               return const CupertinoActivityIndicator();
             }
             if (!templateSnapshot.hasData || templateSnapshot.data!.isEmpty) {
-              return const Text(
-                "No templates available",
+              return Column(
+                children: [
+                  const Text(
+                    "No templates available",
+                  ),
+                  const SizedBox(
+                    height: 35,
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 35.0,
+                    child: CupertinoButton.filled(
+                      padding: const EdgeInsets.all(0),
+                      child: const Text(
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          'Create new template'),
+                      onPressed: () {
+                        // Navigate to the current workout screen or start a new workout
+                        context
+                            .read<WorkoutState>()
+                            .startWorkout(isTemplateCreation: true);
+                      },
+                    ),
+                  ),
+                ],
               );
             }
 
@@ -143,8 +147,6 @@ class HomeScreen extends StatelessWidget {
                           (workout) => workout.id == template['id'],
                           orElse: () => CompletedWorkout.fromMap(template),
                         );
-                        print(
-                            'template: $template, fullTemplate: ${fullTemplate.exercises}');
                         return TemplatePreviewCard(
                           template: fullTemplate,
                           templateId: template['template_id'],
@@ -153,6 +155,25 @@ class HomeScreen extends StatelessWidget {
                               _startWorkoutFromTemplate(context, fullTemplate),
                         );
                       },
+                    ),
+                    const SizedBox(
+                      height: 35,
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 35.0,
+                      child: CupertinoButton.filled(
+                        padding: const EdgeInsets.all(0),
+                        child: const Text(
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            'Create new template'),
+                        onPressed: () {
+                          // Navigate to the current workout screen or start a new workout
+                          context
+                              .read<WorkoutState>()
+                              .startWorkout(isTemplateCreation: true);
+                        },
+                      ),
                     ),
                   ],
                 );
