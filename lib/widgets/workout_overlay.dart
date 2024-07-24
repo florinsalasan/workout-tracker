@@ -7,8 +7,6 @@ import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
-// import 'package:workout_tracker/providers/user_preferences_provider.dart';
-// import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import 'package:workout_tracker/widgets/add_exercise_dialog.dart';
 import 'package:workout_tracker/widgets/single_exercise_tracking.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
@@ -77,6 +75,16 @@ class WorkoutState extends ChangeNotifier {
       return;
     }
 
+    final incompleteOrZeroRepSets = _exercises.expand((exercise) => exercise
+        .sets
+        .where((set) => !set.isCompleted || set.reps == 0)
+        .toList());
+
+    bool shouldRemoveIncompleteSets = false;
+    if (incompleteOrZeroRepSets.isNotEmpty) {
+      shouldRemoveIncompleteSets = await _showIncompleteSetDialog(context);
+    }
+
     final now = DateTime.now();
     final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
 
@@ -87,6 +95,9 @@ class WorkoutState extends ChangeNotifier {
                   workoutId: null,
                   name: exercise.name,
                   sets: exercise.sets
+                      .where((set) =>
+                          !shouldRemoveIncompleteSets ||
+                          (set.isCompleted && set.reps > 0))
                       .map(
                         (set) => CompletedSet(
                           exerciseId: null,
@@ -156,6 +167,29 @@ class WorkoutState extends ChangeNotifier {
         ],
       ),
     );
+  }
+
+  Future<bool> _showIncompleteSetDialog(BuildContext context) async {
+    return await showCupertinoDialog(
+          context: context,
+          builder: (BuildContext context) => CupertinoAlertDialog(
+            title: const Text("Incomplete Sets"),
+            content: const Text(
+                'You have some incomplete sets or set with zero reps, would you like to remove these sets before saving the workout?'),
+            actions: <CupertinoDialogAction>[
+              CupertinoDialogAction(
+                child: const Text('Keep all sets'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                child: const Text('Remove incomplete sets'),
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   void cancelWorkout() {

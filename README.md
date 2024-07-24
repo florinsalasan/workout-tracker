@@ -10,12 +10,13 @@ A workout tracking app with a long list of features that need to be implemented.
 - Preferred units of measure for weights has been implemented
 - Adding an exercise populates the sets with what was performed the last time the user has done that exercise. Removing a set doesn't maintain the 'previous' section though
 - Can launch a workout with create a template and it now gets saved with the exercises performed to be reused at a later time
+- Can delete or rename workout templates by press and holding on them
 
 ## TODO:
 
 ### Basic Functionality:
 
-- [ ] Add a warning on ending a workout for any sets not marked as complete and have user decide whether to have them deleted or saved as 0 reps
+- [x] Add a warning on ending a workout for any sets not marked as complete and have user decide whether to have them deleted or saved as 0 reps
 - [ ] Change the order of exercises in the workout overlay
 - [ ] Add the ability to change which exercise is being tracked instead of only being able to remove exercises from the overlay
 - [x] Display a live timer on the overlay handle in place of the 'Active Workout' label
