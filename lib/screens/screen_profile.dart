@@ -31,8 +31,25 @@ class ProfileScreen extends StatelessWidget {
                           },
                           ['kg', 'lbs'],
                         ),
+                        _buildUnitSetting(
+                          'Height Units',
+                          userPreferences.heightUnit,
+                          (String? newValue) {
+                            if (newValue != null) {
+                              userPreferences.setHeightUnit(newValue);
+                            }
+                          },
+                          ['cm', 'ft'],
+                        ),
                       ],
-                    )
+                    ),
+                    _buildSettingsGroup(
+                      'Personal Information',
+                      [
+                        _buildHeightSetting(userPreferences),
+                        _buildWeightSetting(userPreferences),
+                      ],
+                    ),
                   ],
                 ),
               );
@@ -83,6 +100,52 @@ class ProfileScreen extends StatelessWidget {
         onValueChanged: onChanged,
         padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
         children: segmentTextWidgets,
+      ),
+    );
+  }
+
+  Widget _buildHeightSetting(UserPreferences userPreferences) {
+    return CupertinoFormRow(
+      prefix: const Text('Enter your height:'),
+      child: SizedBox(
+        width: 100,
+        child: CupertinoTextField(
+          placeholder: 'Height',
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            final height = double.tryParse(value);
+            if (height != null) {
+              userPreferences.setHeight(height);
+            }
+          },
+          suffix: Padding(
+            padding: const EdgeInsets.only(right: 5),
+            child: Text(userPreferences.heightUnit),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeightSetting(UserPreferences userPreferences) {
+    return CupertinoFormRow(
+      prefix: const Text('Enter your weight:'),
+      child: SizedBox(
+        width: 100,
+        child: CupertinoTextField(
+          placeholder: 'Weight',
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            final height = double.tryParse(value);
+            if (height != null) {
+              userPreferences.setWeight(height);
+            }
+          },
+          suffix: Padding(
+            padding: const EdgeInsets.only(right: 5),
+            child: Text(userPreferences.weightUnit),
+          ),
+        ),
       ),
     );
   }

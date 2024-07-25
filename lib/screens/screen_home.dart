@@ -15,58 +15,54 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomLayout(
-        title: 'Start Workout',
-        body: CupertinoPageScaffold(
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Section for starting a new workout
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Quick Start',
-                        style: CupertinoTheme.of(context)
-                            .textTheme
-                            .navTitleTextStyle,
-                      ),
-                      const SizedBox(height: 6.0),
-                      SizedBox(
-                        height: 35.0,
-                        width: double.infinity,
-                        child: CupertinoButton.filled(
-                          padding: const EdgeInsets.all(0),
-                          child: const Text(
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                              'Start New Workout'),
-                          onPressed: () {
-                            // Navigate to the current workout screen or start a new workout
-                            context.read<WorkoutState>().startWorkout();
-                          },
-                        ),
-                      ),
-                    ],
+      title: 'Start Workout',
+      body: SafeArea(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section for starting a new workout
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    height: 8,
                   ),
-                ),
-                const Divider(),
-                // Section for choosing or creating a template
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Add your template buttons or grid here
-                      _buildTemplateSection(context),
-                    ],
+                  SizedBox(
+                    height: 35.0,
+                    width: double.infinity,
+                    child: CupertinoButton.filled(
+                      padding: const EdgeInsets.all(0),
+                      child: const Text(
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          'Start New Workout'),
+                      onPressed: () {
+                        // Navigate to the current workout screen or start a new workout
+                        context.read<WorkoutState>().startWorkout();
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ));
+            const Divider(),
+            // Section for choosing or creating a template
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Add your template buttons or grid here
+                  _buildTemplateSection(context),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTemplateSection(BuildContext context) {
