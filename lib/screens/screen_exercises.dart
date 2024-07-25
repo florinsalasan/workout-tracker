@@ -106,14 +106,6 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                   },
                 ),
               ),
-              // Text("Number of pbs: ${allPersonalBests.length}"),
-              // Expanded(
-              //   child: Text("${allPersonalBests.map((pb) => (
-              //         pb.date,
-              //         pb.reps,
-              //         pb.weight,
-              //         pb.totalWeight
-              //       ))}"),),
             ],
           );
         },

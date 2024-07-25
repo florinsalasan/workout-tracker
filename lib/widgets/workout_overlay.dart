@@ -272,8 +272,15 @@ class WorkoutState extends ChangeNotifier {
   }
 }
 
-class WorkoutOverlay extends StatelessWidget {
+class WorkoutOverlay extends StatefulWidget {
   const WorkoutOverlay({super.key});
+
+  @override
+  State<WorkoutOverlay> createState() => _WorkoutOverlayState();
+}
+
+class _WorkoutOverlayState extends State<WorkoutOverlay> {
+  bool _isReordering = false;
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +321,42 @@ class WorkoutOverlay extends StatelessWidget {
                               _buildEndWorkoutButton(context, workoutState),
                             ])),
                   ),
-                  _buildExerciseList(workoutState),
+                  SliverToBoxAdapter(
+                      child: ReorderableListView(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      for (int index = 0;
+                          index < workoutState.exercises.length;
+                          index++)
+                        ExerciseTrackingWidget(
+                            exerciseName: workoutState.exercises[index].name,
+                            exerciseIndex: index,
+                            key: UniqueKey(),
+                            isReordering: _isReordering),
+                    ],
+                    onReorderStart: (index) {
+                      setState(() {
+                        _isReordering = true;
+                      });
+                    },
+                    onReorderEnd: (index) {
+                      setState(() {
+                        _isReordering = false;
+                      });
+                    },
+                    onReorder: (oldIndex, newIndex) {
+                      setState(() {
+                        if (newIndex > oldIndex) {
+                          newIndex -= 1;
+                        }
+                        final exercise =
+                            workoutState.exercises.removeAt(oldIndex);
+                        workoutState.exercises.insert(newIndex, exercise);
+                      });
+                    },
+                  )),
+                  // _buildExerciseList(workoutState),
                   SliverToBoxAdapter(
                       child: _buildAddExerciseButton(context, workoutState)),
                   SliverToBoxAdapter(
@@ -356,18 +398,18 @@ class WorkoutOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildExerciseList(WorkoutState workoutState) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final exercise = workoutState.exercises[index];
-          return ExerciseTrackingWidget(
-              exerciseName: exercise.name, exerciseIndex: index);
-        },
-        childCount: workoutState.exercises.length,
-      ),
-    );
-  }
+  // Widget _buildExerciseList(WorkoutState workoutState) {
+  //   return SliverList(
+  //     delegate: SliverChildBuilderDelegate(
+  //       (context, index) {
+  //         final exercise = workoutState.exercises[index];
+  //         return ExerciseTrackingWidget(
+  //             exerciseName: exercise.name, exerciseIndex: index);
+  //       },
+  //       childCount: workoutState.exercises.length,
+  //     ),
+  //   );
+  // }
 
   _buildCancelWorkoutButton(BuildContext context, WorkoutState workoutState) {
     return CupertinoButton(

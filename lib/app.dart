@@ -11,6 +11,11 @@ class MyApp extends StatelessWidget {
     if (Platform.isIOS) {
       return const CupertinoApp(
         home: MainScreen(),
+        localizationsDelegates: [
+          DefaultMaterialLocalizations.delegate,
+          DefaultCupertinoLocalizations.delegate,
+          DefaultWidgetsLocalizations.delegate,
+        ],
       );
     } else {
       return MaterialApp(
