@@ -43,10 +43,24 @@ class UserPreferences extends ChangeNotifier {
     }
   }
 
+  Future<void> setWeight(double weight) async {
+    if (_height != weight) {
+      _height = weight;
+      await _prefs.setDouble(_weightKey, weight);
+      notifyListeners();
+    }
+  }
+
   Future<void> setHeightUnit(String unit) async {
     if (_heightUnit != unit) {
+      if (_heightUnit == 'cm' && unit == 'ft/in') {
+        _height = _height / 2.54; // Convert cm to inches
+      } else if (_heightUnit == 'ft/in' && unit == 'cm') {
+        _height = _height * 2.54; // Convert inches to cm
+      }
       _heightUnit = unit;
       await _prefs.setString(_heightUnitKey, unit);
+      await _prefs.setDouble(_heightKey, _height);
       notifyListeners();
     }
   }
@@ -59,11 +73,13 @@ class UserPreferences extends ChangeNotifier {
     }
   }
 
-  Future<void> setWeight(double weight) async {
-    if (_height != weight) {
-      _height = weight;
-      await _prefs.setDouble(_weightKey, weight);
-      notifyListeners();
+  String getFormattedHeight() {
+    if (_heightUnit == 'cm') {
+      return '${_height.toStringAsFixed(1)} cm';
+    } else {
+      int feet = (_height / 12).floor();
+      int inches = (_height % 12).round();
+      return '$feet ft $inches in';
     }
   }
 }

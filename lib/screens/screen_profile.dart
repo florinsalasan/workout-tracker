@@ -105,26 +105,11 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeightSetting(UserPreferences userPreferences) {
-    return CupertinoFormRow(
-      prefix: const Text('Enter your height:'),
-      child: SizedBox(
-        width: 100,
-        child: CupertinoTextField(
-          placeholder: 'Height',
-          keyboardType: TextInputType.number,
-          onChanged: (value) {
-            final height = double.tryParse(value);
-            if (height != null) {
-              userPreferences.setHeight(height);
-            }
-          },
-          suffix: Padding(
-            padding: const EdgeInsets.only(right: 5),
-            child: Text(userPreferences.heightUnit),
-          ),
-        ),
-      ),
-    );
+    if (userPreferences.heightUnit == 'cm') {
+      return _buildCentimeterHeightField(userPreferences);
+    } else {
+      return _buildFeetInchesHeightField(userPreferences);
+    }
   }
 
   Widget _buildWeightSetting(UserPreferences userPreferences) {
@@ -133,7 +118,7 @@ class ProfileScreen extends StatelessWidget {
       child: SizedBox(
         width: 100,
         child: CupertinoTextField(
-          placeholder: 'Weight',
+          // placeholder: 'Weight',
           keyboardType: TextInputType.number,
           onChanged: (value) {
             final height = double.tryParse(value);
@@ -149,4 +134,75 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildCentimeterHeightField(UserPreferences userPreferences) {
+  return CupertinoFormRow(
+    prefix: const Text('Enter your height:'),
+    child: SizedBox(
+      width: 100,
+      child: CupertinoTextField(
+        // placeholder: 'Height',
+        keyboardType: TextInputType.number,
+        onChanged: (value) {
+          final height = double.tryParse(value);
+          if (height != null) {
+            userPreferences.setHeight(height);
+          }
+        },
+        suffix: Padding(
+          padding: const EdgeInsets.only(right: 5),
+          child: Text(userPreferences.heightUnit),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildFeetInchesHeightField(UserPreferences userPreferences) {
+  return CupertinoFormRow(
+    prefix: const Text('Height'),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        SizedBox(
+          width: 40,
+          child: CupertinoTextField(
+            // placeholder: 'Feet',
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              final feet = int.tryParse(value);
+              if (feet != null) {
+                final inches = userPreferences.height % 12;
+                userPreferences.setHeight(feet * 12 + inches);
+              }
+            },
+            suffix: const Padding(
+              padding: EdgeInsets.only(right: 5),
+              child: Text('ft'),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 50,
+          child: CupertinoTextField(
+            // placeholder: 'Inches',
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              final inches = int.tryParse(value);
+              if (inches != null) {
+                final feet = (userPreferences.height / 12).floor();
+                userPreferences.setHeight((feet * 12 + inches).toDouble());
+              }
+            },
+            suffix: const Padding(
+              padding: EdgeInsets.only(right: 5),
+              child: Text('in'),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
