@@ -20,7 +20,7 @@ class UserPreferences extends ChangeNotifier {
   String _weightUnit = 'lbs';
   String _heightUnit = 'cm';
   double _height = 0.0;
-  double _weight = 0.0;
+  final double _weight = 0.0;
 
   String get weightUnit => _weightUnit;
   String get heightUnit => _heightUnit;
