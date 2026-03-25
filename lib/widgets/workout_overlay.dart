@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -142,21 +141,23 @@ class WorkoutState extends ChangeNotifier {
   Future<String?> _showTemplateNameDialog(BuildContext context) async {
     final TextEditingController textController = TextEditingController();
 
-    return await showCupertinoDialog<String>(
+    return await showDialog<String>(
       context: context,
-      builder: (BuildContext context) => CupertinoAlertDialog(
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Name Your Template'),
-        content: CupertinoTextField(
+        content: TextField(
           controller: textController,
-          placeholder: 'Enter template name',
+          decoration: const InputDecoration(
+            hintText: 'Enter template name',
+          ),
           autofocus: true,
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Save'),
             onPressed: () {
               final String templateName = textController.text.trim();
@@ -170,19 +171,18 @@ class WorkoutState extends ChangeNotifier {
   }
 
   Future<bool> _showIncompleteSetDialog(BuildContext context) async {
-    return await showCupertinoDialog(
+    return await showDialog(
           context: context,
-          builder: (BuildContext context) => CupertinoAlertDialog(
+          builder: (BuildContext context) => AlertDialog(
             title: const Text("Incomplete Sets"),
             content: const Text(
                 'You have some incomplete sets or set with zero reps, would you like to remove these sets before saving the workout?'),
-            actions: <CupertinoDialogAction>[
-              CupertinoDialogAction(
+            actions: [
+              TextButton(
                 child: const Text('Keep all sets'),
                 onPressed: () => Navigator.of(context).pop(false),
               ),
-              CupertinoDialogAction(
-                isDefaultAction: true,
+              FilledButton(
                 child: const Text('Remove incomplete sets'),
                 onPressed: () => Navigator.of(context).pop(true),
               ),
@@ -282,85 +282,112 @@ class WorkoutOverlay extends StatefulWidget {
 class _WorkoutOverlayState extends State<WorkoutOverlay> {
   bool _isReordering = false;
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         return DraggableScrollableSheet(
-          minChildSize: 0.1,
+          minChildSize: 0.08,
           maxChildSize: 0.9,
           initialChildSize: 0.9,
+          snap: true,
+          snapSizes: const [0.08, 0.9],
           builder: (BuildContext context, ScrollController scrollController) {
             return Container(
               decoration: BoxDecoration(
-                color: CupertinoColors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
-                    color: CupertinoColors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, -5),
                   ),
                 ],
               ),
+              // We return the CustomScrollView directly
               child: CustomScrollView(
-                controller: scrollController,
+                controller: scrollController, // Hooked up for dragging
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              WorkoutTimer(
-                                  startTime: workoutState.workoutStartTime),
-                              const Expanded(
-                                child: Text(''),
-                              ),
-                              _buildEndWorkoutButton(context, workoutState),
-                            ])),
+                  // 1. The Sticky, Draggable Header (Inline Layout)
+                  SliverAppBar(
+                    primary: false,
+                    pinned: true, 
+                    automaticallyImplyLeading: false, 
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                    surfaceTintColor: Colors.transparent, 
+                    elevation: 0,
+                    toolbarHeight: 60, // Slightly more compact to fit perfectly in the minimized state
+                    titleSpacing: 16, // Gives horizontal padding to the timer and button
+                    title: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // The visual drag handle (Perfectly centered)
+                        Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        // The Timer and End Button (Left and Right edges)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            WorkoutTimer(startTime: workoutState.workoutStartTime),
+                            _buildEndWorkoutButton(context, workoutState),
+                          ],
+                        ),
+                      ],
+                    ),
+                    bottom: const PreferredSize(
+                      preferredSize: Size.fromHeight(1),
+                      child: Divider(height: 1),
+                    ),
                   ),
+
+                  // 2. The Exercise List
                   SliverToBoxAdapter(
-                      child: ReorderableListView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      for (int index = 0;
-                          index < workoutState.exercises.length;
-                          index++)
-                        ExerciseTrackingWidget(
-                            exerciseName: workoutState.exercises[index].name,
-                            exerciseIndex: index,
-                            key: UniqueKey(),
-                            isReordering: _isReordering),
-                    ],
-                    onReorderStart: (index) {
-                      setState(() {
-                        _isReordering = true;
-                      });
-                    },
-                    onReorderEnd: (index) {
-                      setState(() {
-                        _isReordering = false;
-                      });
-                    },
-                    onReorder: (oldIndex, newIndex) {
-                      setState(() {
-                        if (newIndex > oldIndex) {
-                          newIndex -= 1;
-                        }
-                        final exercise =
-                            workoutState.exercises.removeAt(oldIndex);
-                        workoutState.exercises.insert(newIndex, exercise);
-                      });
-                    },
-                  )),
-                  // _buildExerciseList(workoutState),
-                  SliverToBoxAdapter(
-                      child: _buildAddExerciseButton(context, workoutState)),
-                  SliverToBoxAdapter(
-                      child: _buildCancelWorkoutButton(context, workoutState)),
+                    child: ReorderableListView(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        for (int index = 0; index < workoutState.exercises.length; index++)
+                          ExerciseTrackingWidget(
+                              exerciseName: workoutState.exercises[index].name,
+                              exerciseIndex: index,
+                              key: UniqueKey(),
+                              isReordering: _isReordering),
+                      ],
+                      onReorderStart: (index) {
+                        setState(() {
+                          _isReordering = true;
+                        });
+                      },
+                      onReorderEnd: (index) {
+                        setState(() {
+                          _isReordering = false;
+                        });
+                      },
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) {
+                            newIndex -= 1;
+                          }
+                          final exercise = workoutState.exercises.removeAt(oldIndex);
+                          workoutState.exercises.insert(newIndex, exercise);
+                        });
+                      },
+                    ),
+                  ),
+                  
+                  // 3. The Actions at the bottom
+                  SliverToBoxAdapter(child: _buildAddExerciseButton(context, workoutState)),
+                  SliverToBoxAdapter(child: _buildCancelWorkoutButton(context, workoutState)),
+                  
+                  // Optional: A little padding at the very bottom so buttons aren't cut off
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)), 
                 ],
               ),
             );
@@ -378,7 +405,7 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
         child: const Text('Add Exercise'),
         onPressed: () async {
           final db = Provider.of<Database>(context, listen: false);
-          final result = await showCupertinoDialog<String>(
+          final result = await showDialog<String>(
             context: context,
             builder: (dialogContext) => Provider<Database>.value(
               value: db,
@@ -398,46 +425,31 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
     );
   }
 
-  // Widget _buildExerciseList(WorkoutState workoutState) {
-  //   return SliverList(
-  //     delegate: SliverChildBuilderDelegate(
-  //       (context, index) {
-  //         final exercise = workoutState.exercises[index];
-  //         return ExerciseTrackingWidget(
-  //             exerciseName: exercise.name, exerciseIndex: index);
-  //       },
-  //       childCount: workoutState.exercises.length,
-  //     ),
-  //   );
-  // }
-
   _buildCancelWorkoutButton(BuildContext context, WorkoutState workoutState) {
-    return CupertinoButton(
-      onPressed: () => showCupertinoModalPopup(
+    return TextButton(
+      onPressed: () => showDialog(
         context: context,
-        builder: (BuildContext context) => CupertinoAlertDialog(
-          title: const Text('Alert'),
-          content: const Text("Are you sure you want to cancel the workout?"),
-          actions: <CupertinoDialogAction>[
-            CupertinoDialogAction(
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Cancel Workout'),
+          content: const Text("Are you sure you want to cancel the workout? This workout will not be saved."),
+          actions: [
+            TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                 },
                 child: const Text("Cancel")),
-            CupertinoDialogAction(
-                isDefaultAction: true,
-                isDestructiveAction: true,
+            FilledButton(
                 onPressed: () {
                   context.read<WorkoutState>().cancelWorkout();
                   Navigator.pop(context);
                 },
-                child: const Text("Cancel Workout"))
+                child: const Text("Discard"))
           ],
         ),
       ),
-      child: const Text(
+      child: Text(
           style: TextStyle(
-            color: CupertinoColors.destructiveRed,
+            color: Theme.of(context).colorScheme.error,
           ),
           "Cancel Workout"),
     );
@@ -445,20 +457,19 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
 
   _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
     final historyProvider = context.read<HistoryProvider>();
-    return CupertinoButton(
-      onPressed: () => showCupertinoModalPopup(
+    return TextButton(
+      onPressed: () => showDialog(
         context: context,
-        builder: (BuildContext context) => CupertinoAlertDialog(
+        builder: (BuildContext context) => AlertDialog(
           title: const Text("End Workout"),
           content: const Text("Are you sure you want to end the workout?"),
-          actions: <CupertinoDialogAction>[
-            CupertinoDialogAction(
+          actions: [
+            TextButton(
                 onPressed: () => {
                       Navigator.pop(context),
                     },
                 child: const Text("Cancel")),
-            CupertinoDialogAction(
-                isDefaultAction: true,
+            FilledButton(
                 onPressed: () => {
                       Navigator.pop(context),
                       workoutState.endWorkout(context, historyProvider),
@@ -467,9 +478,9 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
           ],
         ),
       ),
-      child: const Text(
+      child: Text(
           style: TextStyle(
-            color: CupertinoColors.systemGreen,
+            color: Theme.of(context).colorScheme.primary,
           ),
           "End Workout"),
     );

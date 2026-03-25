@@ -1,7 +1,7 @@
 import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import '../providers/user_preferences_provider.dart';
 import '../widgets/sliver_layout.dart';
-import 'package:flutter/cupertino.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -12,49 +12,50 @@ class ProfileScreen extends StatelessWidget {
       value: UserPreferences(),
       child: CustomLayout(
         title: 'Profile and Settings',
-        body: Center(
-          child: Consumer<UserPreferences>(
-            builder: (context, userPreferences, child) {
-              return SafeArea(
-                child: ListView(
-                  children: [
-                    _buildSettingsGroup(
-                      'Units',
-                      [
-                        _buildUnitSetting(
-                          'Weight Units',
-                          userPreferences.weightUnit,
-                          (String? newValue) {
-                            if (newValue != null) {
-                              userPreferences.setWeightUnit(newValue);
-                            }
-                          },
-                          ['kg', 'lbs'],
-                        ),
-                        _buildUnitSetting(
-                          'Height Units',
-                          userPreferences.heightUnit,
-                          (String? newValue) {
-                            if (newValue != null) {
-                              userPreferences.setHeightUnit(newValue);
-                            }
-                          },
-                          ['cm', 'ft'],
-                        ),
-                      ],
-                    ),
-                    _buildSettingsGroup(
-                      'Personal Information',
-                      [
-                        _buildHeightSetting(userPreferences),
-                        _buildWeightSetting(userPreferences),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+        body: Consumer<UserPreferences>(
+          builder: (context, userPreferences, child) {
+            return SafeArea(
+              child: ListView(
+                children: [
+                  _buildSettingsGroup(
+                    'Units',
+                    [
+                      _buildUnitSetting(
+                        'Weight Units',
+                        userPreferences.weightUnit,
+                        (String? newValue) {
+                          if (newValue != null) {
+                            userPreferences.setWeightUnit(newValue);
+                          }
+                        },
+                        ['kg', 'lbs'],
+                      ),
+                      const Divider(height: 1),
+                      _buildUnitSetting(
+                        'Height Units',
+                        userPreferences.heightUnit,
+                        (String? newValue) {
+                          if (newValue != null) {
+                            userPreferences.setHeightUnit(newValue);
+                          }
+                        },
+                        ['cm', 'ft'],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSettingsGroup(
+                    'Personal Information',
+                    [
+                      _buildHeightSetting(userPreferences),
+                      const Divider(height: 1),
+                      _buildWeightSetting(userPreferences),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -65,16 +66,28 @@ class ProfileScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
           child: Text(
             title,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
+              color: Colors.blueAccent, // Matches the seed color we set earlier
             ),
           ),
         ),
-        ...children,
+        // Wrapping in a Material card gives it that elevated, grouped settings look
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: children,
+          ),
+        ),
       ],
     );
   }
@@ -85,21 +98,22 @@ class ProfileScreen extends StatelessWidget {
     void Function(String?) onChanged,
     List<String> options,
   ) {
-    final Map<String, Widget> segmentTextWidgets = <String, Widget>{
-      for (var option in options)
-        option: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(option),
+    return ListTile(
+      title: Text(title),
+      trailing: SegmentedButton<String>(
+        segments: options.map((String option) {
+          return ButtonSegment<String>(
+            value: option,
+            label: Text(option),
+          );
+        }).toList(),
+        selected: {currentValue},
+        onSelectionChanged: (Set<String> newSelection) {
+          onChanged(newSelection.first);
+        },
+        style: SegmentedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
         ),
-    };
-
-    return CupertinoFormRow(
-      prefix: Text(title),
-      child: CupertinoSegmentedControl<String>(
-        groupValue: currentValue,
-        onValueChanged: onChanged,
-        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
-        children: segmentTextWidgets,
       ),
     );
   }
@@ -113,96 +127,150 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildWeightSetting(UserPreferences userPreferences) {
-    return CupertinoFormRow(
-      prefix: const Text('Enter your weight:'),
-      child: SizedBox(
-        width: 100,
-        child: CupertinoTextField(
-          // placeholder: 'Weight',
+    return ListTile(
+      title: const Text('Enter your weight:'),
+      trailing: SizedBox(
+        width: 120,
+        child: TextField(
           keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            suffixIcon: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Text(
+                    userPreferences.weightUnit,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            isDense: true,
+          ),
           onChanged: (value) {
-            final height = double.tryParse(value);
-            if (height != null) {
-              userPreferences.setWeight(height);
+            final weight = double.tryParse(value);
+            if (weight != null) {
+              userPreferences.setWeight(weight);
             }
           },
-          suffix: Padding(
-            padding: const EdgeInsets.only(right: 5),
-            child: Text(userPreferences.weightUnit),
-          ),
         ),
       ),
     );
   }
-}
 
-Widget _buildCentimeterHeightField(UserPreferences userPreferences) {
-  return CupertinoFormRow(
-    prefix: const Text('Enter your height:'),
-    child: SizedBox(
-      width: 100,
-      child: CupertinoTextField(
-        // placeholder: 'Height',
-        keyboardType: TextInputType.number,
-        onChanged: (value) {
-          final height = double.tryParse(value);
-          if (height != null) {
-            userPreferences.setHeight(height);
-          }
-        },
-        suffix: Padding(
-          padding: const EdgeInsets.only(right: 5),
-          child: Text(userPreferences.heightUnit),
+  Widget _buildCentimeterHeightField(UserPreferences userPreferences) {
+    return ListTile(
+      title: const Text('Enter your height:'),
+      trailing: SizedBox(
+        width: 120,
+        child: TextField(
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            suffixIcon: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Text(
+                    userPreferences.heightUnit,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            isDense: true,
+          ),
+          onChanged: (value) {
+            final height = double.tryParse(value);
+            if (height != null) {
+              userPreferences.setHeight(height);
+            }
+          },
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildFeetInchesHeightField(UserPreferences userPreferences) {
-  return CupertinoFormRow(
-    prefix: const Text('Height'),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        SizedBox(
-          width: 40,
-          child: CupertinoTextField(
-            // placeholder: 'Feet',
-            keyboardType: TextInputType.number,
-            onChanged: (value) {
-              final feet = int.tryParse(value);
-              if (feet != null) {
-                final inches = userPreferences.height % 12;
-                userPreferences.setHeight(feet * 12 + inches);
-              }
-            },
-            suffix: const Padding(
-              padding: EdgeInsets.only(right: 5),
-              child: Text('ft'),
+  Widget _buildFeetInchesHeightField(UserPreferences userPreferences) {
+    return ListTile(
+      title: const Text('Enter your height:'),
+      trailing: SizedBox(
+        width: 160,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                suffixIcon: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Text(
+                        "ft",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+              ),
+                onChanged: (value) {
+                  final feet = int.tryParse(value);
+                  if (feet != null) {
+                    final inches = userPreferences.height % 12;
+                    userPreferences.setHeight(feet * 12 + inches);
+                  }
+                },
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 50,
-          child: CupertinoTextField(
-            // placeholder: 'Inches',
-            keyboardType: TextInputType.number,
-            onChanged: (value) {
-              final inches = int.tryParse(value);
-              if (inches != null) {
-                final feet = (userPreferences.height / 12).floor();
-                userPreferences.setHeight((feet * 12 + inches).toDouble());
-              }
-            },
-            suffix: const Padding(
-              padding: EdgeInsets.only(right: 5),
-              child: Text('in'),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                suffixIcon: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Text(
+                        "in",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+              ),
+                onChanged: (value) {
+                  final inches = int.tryParse(value);
+                  if (inches != null) {
+                    final feet = (userPreferences.height / 12).floor();
+                    userPreferences.setHeight((feet * 12 + inches).toDouble());
+                  }
+                },
+              ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }

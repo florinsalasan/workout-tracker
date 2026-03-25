@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
@@ -144,7 +144,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         return Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16.0,
-            vertical: 2.0,
+            vertical: 4.0, // Increased slightly to accommodate the Material borders
           ),
           child: Row(
             children: [
@@ -152,7 +152,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                 width: 25,
                 child: Text(
                   '${widget.setIndex + 1}',
-                  style: CupertinoTheme.of(context).textTheme.textStyle,
+                  // Switched to Material text theme
+                  style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -168,8 +169,9 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                       ? '-'
                       : "${WeightConverter.convertFromGrams(double.parse(currentSet.previousSetData.weight).round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${currentSet.previousSetData.reps}",
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: CupertinoColors.secondaryLabel,
+                  style: TextStyle(
+                    // Switched from Cupertino secondaryLabel to Material onSurfaceVariant
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 14,
                   ),
                 ),
@@ -179,12 +181,18 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               ),
               Expanded(
                 flex: 2,
-                child: CupertinoTextField(
+                child: TextField(
                   controller: _weightController,
                   focusNode: _weightFocusNode,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  placeholder: weightUnit,
+                  decoration: InputDecoration(
+                    hintText: weightUnit,
+                    // Keeps the input box compact
+                    isDense: true, 
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    border: const OutlineInputBorder(),
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^\d*\.?\d{0,2}$')),
@@ -196,11 +204,16 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               const SizedBox(width: 20),
               Expanded(
                 flex: 2,
-                child: CupertinoTextField(
+                child: TextField(
                   controller: _repsController,
                   focusNode: _repsFocusNode,
                   keyboardType: TextInputType.number,
-                  placeholder: 'Reps',
+                  decoration: const InputDecoration(
+                    hintText: 'Reps',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    border: OutlineInputBorder(),
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                   ],
@@ -211,15 +224,17 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
               const SizedBox(width: 20),
               SizedBox(
                 width: 44,
-                child: CupertinoButton(
+                child: IconButton(
                   padding: EdgeInsets.zero,
-                  child: Icon(
+                  // Minimizes the hit target footprint to match Cupertino's button
+                  constraints: const BoxConstraints(), 
+                  icon: Icon(
                     currentSet.isCompleted
-                        ? CupertinoIcons.check_mark_circled_solid
-                        : CupertinoIcons.circle,
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
                     color: currentSet.isCompleted
-                        ? CupertinoColors.activeBlue
-                        : CupertinoColors.systemGrey,
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey,
                   ),
                   onPressed: () {
                     workoutState.updateSet(

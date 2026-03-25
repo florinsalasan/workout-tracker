@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'single_set_tracking.dart';
@@ -33,15 +33,14 @@ class ExerciseTrackingWidget extends StatelessWidget {
                       horizontal: 16.0, vertical: 8.0),
                   child: Text(
                     exerciseName,
-                    style:
-                        CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 const Spacer(),
                 if (!isReordering)
-                  CupertinoButton(
+                  IconButton(
                     onPressed: () => _removeExercise(context, exerciseIndex),
-                    child: const Icon(CupertinoIcons.clear),
+                    icon: const Icon(Icons.clear),
                   ),
               ],
             ),
@@ -82,18 +81,18 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   background: Container(
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20.0),
-                    color: CupertinoColors.destructiveRed,
+                    color: Colors.red,
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Icon(
-                          CupertinoIcons.trash,
-                          color: CupertinoColors.white,
+                          Icons.delete,
+                          color: Colors.white,
                         ),
                         SizedBox(width: 5),
                         Text(
                           'Delete',
-                          style: TextStyle(color: CupertinoColors.white),
+                          style: TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
@@ -114,7 +113,7 @@ class ExerciseTrackingWidget extends StatelessWidget {
               }),
               Padding(
                 padding: const EdgeInsets.all(10.0),
-                child: CupertinoButton(
+                child: TextButton(
                   onPressed: () {
                     workoutState.addSet(exerciseIndex, 0, 0);
                   },
@@ -130,21 +129,23 @@ class ExerciseTrackingWidget extends StatelessWidget {
 }
 
 void _removeExercise(BuildContext context, int index) {
-  showCupertinoModalPopup(
+  showDialog(
     context: context,
-    builder: (BuildContext context) => CupertinoAlertDialog(
+    builder: (BuildContext context) => AlertDialog(
       title: const Text("Alert"),
       content: const Text("Are you sure you want to remove this exercise?"),
-      actions: <CupertinoDialogAction>[
-        CupertinoDialogAction(
+      actions: <Widget>[
+        TextButton(
           onPressed: () {
             Navigator.pop(context);
           },
           child: const Text('Cancel'),
         ),
-        CupertinoDialogAction(
-          isDefaultAction: true,
-          isDestructiveAction: true,
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+            textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           onPressed: () {
             context.read<WorkoutState>().removeExercise(index);
             Navigator.pop(context);

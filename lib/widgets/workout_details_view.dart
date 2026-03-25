@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
@@ -11,24 +11,24 @@ class WorkoutDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Workout Details'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Workout Details'),
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             const SizedBox(height: 24),
-            _buildExerciseList(),
+            _buildExerciseList(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -42,16 +42,17 @@ class WorkoutDetailsView extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Duration: ${formatDuration(workout.durationInSeconds)}',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
-            color: CupertinoColors.secondaryLabel,
+            // Using the Material theme to automatically handle light/dark mode secondary text
+            color: Theme.of(context).colorScheme.onSurfaceVariant, 
           ),
         ),
       ],
     );
   }
 
-  Widget _buildExerciseList() {
+  Widget _buildExerciseList(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -62,33 +63,36 @@ class WorkoutDetailsView extends StatelessWidget {
         const SizedBox(
           height: 16,
         ),
-        ...workout.exercises.map((exercise) => _buildExerciseItem(exercise))
+        ...workout.exercises.map((exercise) => _buildExerciseItem(context, exercise))
       ],
     );
   }
 
-  Widget _buildExerciseItem(CompletedExercise exercise) {
-    return Container(
+  Widget _buildExerciseItem(BuildContext context, CompletedExercise exercise) {
+    // Replaced the BoxDecoration container with a Material Card
+    return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CupertinoColors.separator),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            exercise.name,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              exercise.name,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          ...exercise.sets.map((set) => _buildSetItem(set)),
-        ],
+            const SizedBox(height: 8),
+            ...exercise.sets.map((set) => _buildSetItem(set)),
+          ],
+        ),
       ),
     );
   }
@@ -100,9 +104,9 @@ class WorkoutDetailsView extends StatelessWidget {
       child: Row(
         children: [
           const Icon(
-            CupertinoIcons.checkmark_circle_fill,
+            Icons.check_circle, // Swapped Cupertino check for Material check
             size: 16,
-            color: CupertinoColors.activeGreen,
+            color: Colors.green, // Standard Material green
           ),
           const SizedBox(width: 8),
           Text(

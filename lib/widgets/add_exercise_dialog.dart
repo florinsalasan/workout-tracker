@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/exercise_provider.dart';
 import '../services/db_helpers.dart';
@@ -30,44 +30,50 @@ class ExerciseSelectionDialogState extends State<ExerciseSelectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Select Exercise'),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Text('Cancel'),
+    // Returning a Scaffold inside a showDialog automatically makes it a full-screen modal
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Select Exercise'),
+        // Material standard is an 'X' close button on the left for modal dialogs
+        leading: IconButton(
+          icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Consumer<ExerciseProvider>(
           builder: (context, exerciseProvider, child) {
             return ListView(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: CupertinoTextField(
+                  child: TextField(
                     controller: customExerciseController,
-                    placeholder: 'Add custom exercise',
+                    decoration: InputDecoration(
+                      hintText: 'Add custom exercise',
+                      border: const OutlineInputBorder(), // Gives it a clean Material text box look
+                      // Moves the add button inside the text field
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.add_circle),
+                        color: Theme.of(context).colorScheme.primary,
+                        onPressed: () {
+                          if (customExerciseController.text.isNotEmpty) {
+                            _addCustomExercise(customExerciseController.text);
+                          }
+                        },
+                      ),
+                    ),
                     onSubmitted: (value) {
                       if (value.isNotEmpty) {
                         _addCustomExercise(value);
                       }
                     },
-                    suffix: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: const Icon(CupertinoIcons.add_circled),
-                      onPressed: () {
-                        if (customExerciseController.text.isNotEmpty) {
-                          _addCustomExercise(customExerciseController.text);
-                        }
-                      },
-                    ),
                   ),
                 ),
-                ...exerciseProvider.exercises.map((exercise) => CupertinoButton(
-                      child: Text(exercise.name),
-                      onPressed: () => Navigator.of(context).pop(exercise.name),
+                // Replacing CupertinoButton with ListTile for native Material spacing and tap ripples
+                ...exerciseProvider.exercises.map((exercise) => ListTile(
+                      title: Text(exercise.name),
+                      onTap: () => Navigator.of(context).pop(exercise.name),
                     )),
               ],
             );

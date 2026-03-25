@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
 
@@ -20,66 +20,70 @@ class TemplatePreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoContextMenu(
-      enableHapticFeedback: true,
-      actions: <Widget>[
-        CupertinoContextMenuAction(
-          onPressed: () {
-            _renameTemplate(context);
-            // Navigator.pop(context);
-          },
-          child: const Text(
-            'Rename Template',
-          ),
-        ),
-        CupertinoContextMenuAction(
-          trailingIcon: CupertinoIcons.delete,
-          isDestructiveAction: true,
-          onPressed: () {
-            _removeTemplate(context);
-            // Navigator.pop(context);
-          },
-          child: const Text(
-            'Delete Template',
-          ),
-        ),
-      ],
-      child: GestureDetector(
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias, // Keeps the tap ripple inside the borders
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Theme.of(context).dividerColor),
+      ),
+      child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: CupertinoColors.systemGrey4),
-          ),
+        onLongPress: () => _showOptionsSheet(context),
+        child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // A small visual indicator that there's a menu
+                  GestureDetector(
+                    onTap: () => _showOptionsSheet(context),
+                    child: Icon(
+                      Icons.more_vert,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(
-                'Number of Exercises: ${template.exercises.length}',
-                style: const TextStyle(fontSize: 14),
+                'Exercises: ${template.exercises.length}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               ...template.exercises.take(3).map((exercise) => Text(
                     exercise.name,
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   )),
               if (template.exercises.length > 3)
-                const Text(
+                Text(
                   "...",
-                  style: TextStyle(fontSize: 12),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
             ],
           ),
@@ -88,23 +92,62 @@ class TemplatePreviewCard extends StatelessWidget {
     );
   }
 
+  // Material Bottom Sheet replacing the Cupertino Context Menu
+  void _showOptionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext bottomSheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Rename Template'),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext); // Close sheet
+                  _renameTemplate(context); // Open dialog
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text(
+                  'Delete Template',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext); // Close sheet
+                  _removeTemplate(context); // Open dialog
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _removeTemplate(BuildContext context) async {
     final historyProvider =
         Provider.of<HistoryProvider>(context, listen: false);
 
-    // Show a confirmation dialog
-    final bool? confirm = await showCupertinoDialog<bool>(
+    final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) => CupertinoAlertDialog(
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Delete Template'),
         content: const Text('Are you sure you want to delete this template?'),
-        actions: <CupertinoDialogAction>[
-          CupertinoDialogAction(
+        actions: <Widget>[
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.of(context).pop(false),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red, // Material way to make destructive text red
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -121,24 +164,32 @@ class TemplatePreviewCard extends StatelessWidget {
     final historyProvider =
         Provider.of<HistoryProvider>(context, listen: false);
     String newName = name;
+    final TextEditingController controller = TextEditingController(text: name);
 
-    // Show a dialog to input the new name
-    await showCupertinoDialog(
+    await showDialog(
       context: context,
-      builder: (BuildContext context) => CupertinoAlertDialog(
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('Rename Template'),
-        content: CupertinoTextField(
-          controller: TextEditingController(text: name),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Template Name',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
           onChanged: (value) => newName = value,
         ),
-        actions: <CupertinoDialogAction>[
-          CupertinoDialogAction(
+        actions: <Widget>[
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          CupertinoDialogAction(
+          TextButton(
             onPressed: () async {
-              await historyProvider.renameTemplate(templateId, newName);
+              if (newName.trim().isNotEmpty) {
+                await historyProvider.renameTemplate(templateId, newName.trim());
+              }
               if (context.mounted) {
                 Navigator.of(context).pop();
               }
