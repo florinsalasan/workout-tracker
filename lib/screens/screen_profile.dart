@@ -1,5 +1,5 @@
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../widgets/sliver_layout.dart';
 
@@ -47,9 +47,9 @@ class ProfileScreen extends StatelessWidget {
                   _buildSettingsGroup(
                     'Personal Information',
                     [
-                      _buildHeightSetting(userPreferences),
+                      _buildHeightDisplay(context, userPreferences),
                       const Divider(height: 1),
-                      _buildWeightSetting(userPreferences),
+                      _buildWeightDisplay(context, userPreferences),
                     ],
                   ),
                 ],
@@ -72,11 +72,10 @@ class ProfileScreen extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.blueAccent, // Matches the seed color we set earlier
+              color: Colors.blueAccent,
             ),
           ),
         ),
-        // Wrapping in a Material card gives it that elevated, grouped settings look
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16.0),
           elevation: 0,
@@ -101,6 +100,7 @@ class ProfileScreen extends StatelessWidget {
     return ListTile(
       title: Text(title),
       trailing: SegmentedButton<String>(
+        showSelectedIcon: false, // Disables the checkmark to prevent text shifting
         segments: options.map((String option) {
           return ButtonSegment<String>(
             value: option,
@@ -118,158 +118,176 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeightSetting(UserPreferences userPreferences) {
+  // --- NEW: Static Display Widgets ---
+
+  Widget _buildWeightDisplay(BuildContext context, UserPreferences userPreferences) {
+    return ListTile(
+      title: const Text('Weight'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${userPreferences.displayWeight.toStringAsFixed(1)} ${userPreferences.weightUnit}',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.edit, size: 20, color: Colors.grey),
+        ],
+      ),
+      // Tapping the row opens the form
+      onTap: () => _showWeightDialog(context, userPreferences), 
+    );
+  }
+
+  Widget _buildHeightDisplay(BuildContext context, UserPreferences userPreferences) {
+    String displayHeight;
     if (userPreferences.heightUnit == 'cm') {
-      return _buildCentimeterHeightField(userPreferences);
+        displayHeight = '${userPreferences.displayHeight.toStringAsFixed(1)} cm';
     } else {
-      return _buildFeetInchesHeightField(userPreferences);
+      final feet = (userPreferences.displayHeight / 12).floor();
+      final inches = (userPreferences.displayHeight % 12).round();
+      displayHeight = '$feet\' $inches"';
     }
+
+    return ListTile(
+      title: const Text('Height'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            displayHeight,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.edit, size: 20, color: Colors.grey),
+        ],
+      ),
+      // Tapping the row opens the form
+      onTap: () => _showHeightDialog(context, userPreferences),
+    );
   }
 
-  Widget _buildWeightSetting(UserPreferences userPreferences) {
-    return ListTile(
-      title: const Text('Enter your weight:'),
-      trailing: SizedBox(
-        width: 120,
-        child: TextField(
-          keyboardType: TextInputType.number,
+  // --- NEW: Form Dialogs ---
+
+  void _showWeightDialog(BuildContext context, UserPreferences userPreferences) {
+    final controller = TextEditingController(
+      text: userPreferences.weight > 0 ? userPreferences.weight.toString() : '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Weight'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            suffixIcon: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  child: Text(
-                    userPreferences.weightUnit,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ],
-            ),
+            labelText: 'Weight',
+            hintText: 'e.g., 190',
+            suffixText: userPreferences.weightUnit,
             border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            isDense: true,
           ),
-          onChanged: (value) {
-            final weight = double.tryParse(value);
-            if (weight != null) {
-              userPreferences.setWeight(weight);
-            }
-          },
+          autofocus: true,
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final weight = double.tryParse(controller.text);
+              if (weight != null) {
+                userPreferences.setWeight(weight);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCentimeterHeightField(UserPreferences userPreferences) {
-    return ListTile(
-      title: const Text('Enter your height:'),
-      trailing: SizedBox(
-        width: 120,
-        child: TextField(
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            suffixIcon: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+  void _showHeightDialog(BuildContext context, UserPreferences userPreferences) {
+    final isCm = userPreferences.heightUnit == 'cm';
+    
+    final cmController = TextEditingController(
+      text: userPreferences.height > 0 ? userPreferences.height.toString() : '',
+    );
+    
+    final feet = (userPreferences.height / 12).floor();
+    final inches = (userPreferences.height % 12).round();
+    
+    final ftController = TextEditingController(text: feet > 0 ? feet.toString() : '');
+    final inController = TextEditingController(text: inches > 0 ? inches.toString() : '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Height'),
+        content: isCm 
+          ? TextField(
+              controller: cmController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Height',
+                hintText: 'e.g., 180',
+                suffixText: 'cm',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            )
+          : Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  child: Text(
-                    userPreferences.heightUnit,
-                    style: const TextStyle(color: Colors.grey),
+                Expanded(
+                  child: TextField(
+                    controller: ftController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Feet',
+                      hintText: 'e.g., 6',
+                      suffixText: 'ft',
+                      border: OutlineInputBorder(),
+                    ),
+                    autofocus: true,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: inController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Inches',
+                      hintText: 'e.g., 5',
+                      suffixText: 'in',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
               ],
             ),
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            isDense: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-          onChanged: (value) {
-            final height = double.tryParse(value);
-            if (height != null) {
-              userPreferences.setHeight(height);
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeetInchesHeightField(UserPreferences userPreferences) {
-    return ListTile(
-      title: const Text('Enter your height:'),
-      trailing: SizedBox(
-        width: 160,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Expanded(
-              child: TextField(
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                suffixIcon: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Text(
-                        "ft",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ],
-                ),
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
-              ),
-                onChanged: (value) {
-                  final feet = int.tryParse(value);
-                  if (feet != null) {
-                    final inches = userPreferences.height % 12;
-                    userPreferences.setHeight(feet * 12 + inches);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                suffixIcon: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Text(
-                        "in",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ],
-                ),
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
-              ),
-                onChanged: (value) {
-                  final inches = int.tryParse(value);
-                  if (inches != null) {
-                    final feet = (userPreferences.height / 12).floor();
-                    userPreferences.setHeight((feet * 12 + inches).toDouble());
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
+          FilledButton(
+            onPressed: () {
+              if (isCm) {
+                final height = double.tryParse(cmController.text);
+                if (height != null) userPreferences.setHeight(height);
+              } else {
+                final f = int.tryParse(ftController.text) ?? 0;
+                final i = int.tryParse(inController.text) ?? 0;
+                userPreferences.setHeight((f * 12 + i).toDouble());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

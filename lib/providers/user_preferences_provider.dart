@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UserPreferences extends ChangeNotifier {
   static const String _weightUnitKey = 'weightUnit';
   static const String _heightUnitKey = 'heightUnit';
-  static const String _heightKey = 'height';
-  static const String _weightKey = 'weight';
+  static const String _heightCmKey = 'height_cm'; // Renamed to explicitly note the base unit
+  static const String _weightGKey = 'weight_g'; // Renamed to explicitly note the base unit
+  
   static final UserPreferences _instance = UserPreferences._internal();
 
   factory UserPreferences() {
@@ -19,22 +20,44 @@ class UserPreferences extends ChangeNotifier {
   late SharedPreferences _prefs;
   String _weightUnit = 'lbs';
   String _heightUnit = 'cm';
-  double _height = 0.0;
-  final double _weight = 0.0;
+  
+  // These are ALWAYS stored in cm and kg under the hood
+  double _baseHeightCm = 0.0;
+  int _baseWeightGrams = 0; 
 
   String get weightUnit => _weightUnit;
   String get heightUnit => _heightUnit;
-  double get height => _height;
-  double get weight => _weight;
+  
+  // Getters that return the BASE values (useful for saving to DB or syncing)
+  double get rawHeightCm => _baseHeightCm;
+  int get rawWeightKg => _baseWeightGrams;
+
+  // --- NEW: Smart Getters ---
+  // These dynamically calculate the value based on the current unit preference!
+  double get displayWeight {
+    if (_weightUnit == 'lbs') {
+      return _baseWeightGrams * 2.20462;
+    }
+    return _baseWeightGrams / 1000.0;
+  }
+
+  double get displayHeight {
+    if (_heightUnit == 'ft') {
+      return _baseHeightCm / 2.54; // Returns total inches
+    }
+    return _baseHeightCm;
+  }
 
   Future<void> _loadPreferences() async {
     _prefs = await SharedPreferences.getInstance();
     _weightUnit = _prefs.getString(_weightUnitKey) ?? 'lbs';
     _heightUnit = _prefs.getString(_heightUnitKey) ?? 'cm';
-    _height = _prefs.getDouble(_heightKey) ?? 0.0;
+    _baseHeightCm = _prefs.getDouble(_heightCmKey) ?? 0.0;
+    _baseWeightGrams = _prefs.getInt(_weightGKey) ?? 0; 
     notifyListeners();
   }
 
+  // Unit toggles no longer do ANY math. They just update the string!
   Future<void> setWeightUnit(String unit) async {
     if (_weightUnit != unit) {
       _weightUnit = unit;
@@ -43,43 +66,41 @@ class UserPreferences extends ChangeNotifier {
     }
   }
 
-  Future<void> setWeight(double weight) async {
-    if (_height != weight) {
-      _height = weight;
-      await _prefs.setDouble(_weightKey, weight);
-      notifyListeners();
-    }
-  }
-
   Future<void> setHeightUnit(String unit) async {
     if (_heightUnit != unit) {
-      if (_heightUnit == 'cm' && unit == 'ft/in') {
-        _height = _height / 2.54; // Convert cm to inches
-      } else if (_heightUnit == 'ft/in' && unit == 'cm') {
-        _height = _height * 2.54; // Convert inches to cm
-      }
       _heightUnit = unit;
       await _prefs.setString(_heightUnitKey, unit);
-      await _prefs.setDouble(_heightKey, _height);
       notifyListeners();
     }
   }
 
-  Future<void> setHeight(double height) async {
-    if (_height != height) {
-      _height = height;
-      await _prefs.setDouble(_heightKey, height);
-      notifyListeners();
-    }
-  }
-
-  String getFormattedHeight() {
-    if (_heightUnit == 'cm') {
-      return '${_height.toStringAsFixed(1)} cm';
+  // --- NEW: Smart Setters ---
+  // The UI passes in the number it sees (e.g., 190 lbs). This converts it back to the base unit for storage.
+  Future<void> saveWeightFromUI(double enteredWeight) async {
+    int weightInGrams;
+    if (_weightUnit == 'lbs') {
+      weightInGrams = ((enteredWeight / 2.20462) * 1000).round();
     } else {
-      int feet = (_height / 12).floor();
-      int inches = (_height % 12).round();
-      return '$feet ft $inches in';
+      weightInGrams = (enteredWeight * 1000).round();
+    }
+    
+    if (_baseWeightGrams != weightInGrams) {
+      _baseWeightGrams = weightInGrams;
+      await _prefs.setInt(_weightGKey, weightInGrams);
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveHeightFromUI(double enteredHeight) async {
+    double heightInCm = enteredHeight;
+    if (_heightUnit == 'ft') { // Assuming UI passed total inches
+      heightInCm = enteredHeight * 2.54; 
+    }
+
+    if (_baseHeightCm != heightInCm) {
+      _baseHeightCm = heightInCm;
+      await _prefs.setDouble(_heightCmKey, heightInCm);
+      notifyListeners();
     }
   }
 }

@@ -126,6 +126,14 @@ class DatabaseHelper {
       FOREIGN KEY (tag_id) REFERENCES exercise_tags (id) ON DELETE CASCADE
     )
     ''');
+
+    await db.execute('''
+    CREATE TABLE body_weight_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        weight_g INTEGER NOT NULL
+    )
+    ''');
   }
 
   Future<int> insertExercise(Exercise exercise) async {
@@ -556,6 +564,14 @@ class DatabaseHelper {
 
     return results.map((map) => PersonalBest.fromMap(map)).toList();
   }
+
+  Future<int> logBodyWeight(int weightInGrams) async {
+        final db = await instance.database;
+        return await db.insert('body_weight_log', {
+          'date': DateTime.now().toIso8601String(),
+          'weight_g': weightInGrams,
+        });
+    }
 }
 
 class Exercise {
