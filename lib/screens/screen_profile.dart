@@ -100,7 +100,7 @@ class ProfileScreen extends StatelessWidget {
     return ListTile(
       title: Text(title),
       trailing: SegmentedButton<String>(
-        showSelectedIcon: false, // Disables the checkmark to prevent text shifting
+        showSelectedIcon: false, 
         segments: options.map((String option) {
           return ButtonSegment<String>(
             value: option,
@@ -118,8 +118,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- NEW: Static Display Widgets ---
-
   Widget _buildWeightDisplay(BuildContext context, UserPreferences userPreferences) {
     return ListTile(
       title: const Text('Weight'),
@@ -134,7 +132,6 @@ class ProfileScreen extends StatelessWidget {
           const Icon(Icons.edit, size: 20, color: Colors.grey),
         ],
       ),
-      // Tapping the row opens the form
       onTap: () => _showWeightDialog(context, userPreferences), 
     );
   }
@@ -142,7 +139,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildHeightDisplay(BuildContext context, UserPreferences userPreferences) {
     String displayHeight;
     if (userPreferences.heightUnit == 'cm') {
-        displayHeight = '${userPreferences.displayHeight.toStringAsFixed(1)} cm';
+      displayHeight = '${userPreferences.displayHeight.toStringAsFixed(1)} cm';
     } else {
       final feet = (userPreferences.displayHeight / 12).floor();
       final inches = (userPreferences.displayHeight % 12).round();
@@ -162,16 +159,13 @@ class ProfileScreen extends StatelessWidget {
           const Icon(Icons.edit, size: 20, color: Colors.grey),
         ],
       ),
-      // Tapping the row opens the form
       onTap: () => _showHeightDialog(context, userPreferences),
     );
   }
 
-  // --- NEW: Form Dialogs ---
-
   void _showWeightDialog(BuildContext context, UserPreferences userPreferences) {
     final controller = TextEditingController(
-      text: userPreferences.weight > 0 ? userPreferences.weight.toString() : '',
+      text: userPreferences.displayWeight > 0 ? userPreferences.displayWeight.toStringAsFixed(1) : '',
     );
 
     showDialog(
@@ -198,7 +192,7 @@ class ProfileScreen extends StatelessWidget {
             onPressed: () {
               final weight = double.tryParse(controller.text);
               if (weight != null) {
-                userPreferences.setWeight(weight);
+                userPreferences.saveWeightFromUI(weight); 
               }
               Navigator.pop(context);
             },
@@ -213,11 +207,11 @@ class ProfileScreen extends StatelessWidget {
     final isCm = userPreferences.heightUnit == 'cm';
     
     final cmController = TextEditingController(
-      text: userPreferences.height > 0 ? userPreferences.height.toString() : '',
+      text: userPreferences.displayHeight > 0 ? userPreferences.displayHeight.toStringAsFixed(1) : '',
     );
     
-    final feet = (userPreferences.height / 12).floor();
-    final inches = (userPreferences.height % 12).round();
+    final feet = (userPreferences.displayHeight / 12).floor();
+    final inches = (userPreferences.displayHeight % 12).round();
     
     final ftController = TextEditingController(text: feet > 0 ? feet.toString() : '');
     final inController = TextEditingController(text: inches > 0 ? inches.toString() : '');
@@ -277,11 +271,11 @@ class ProfileScreen extends StatelessWidget {
             onPressed: () {
               if (isCm) {
                 final height = double.tryParse(cmController.text);
-                if (height != null) userPreferences.setHeight(height);
+                if (height != null) userPreferences.saveHeightFromUI(height);
               } else {
                 final f = int.tryParse(ftController.text) ?? 0;
                 final i = int.tryParse(inController.text) ?? 0;
-                userPreferences.setHeight((f * 12 + i).toDouble());
+                userPreferences.saveHeightFromUI((f * 12 + i).toDouble());
               }
               Navigator.pop(context);
             },

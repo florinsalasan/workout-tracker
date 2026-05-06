@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/db_helpers.dart'; 
 
 class UserPreferences extends ChangeNotifier {
   static const String _weightUnitKey = 'weightUnit';
   static const String _heightUnitKey = 'heightUnit';
-  static const String _heightCmKey = 'height_cm'; // Renamed to explicitly note the base unit
-  static const String _weightGKey = 'weight_g'; // Renamed to explicitly note the base unit
+  static const String _heightCmKey = 'height_cm'; 
+  static const String _weightGKey = 'weight_g'; // Using grams to match DB
   
   static final UserPreferences _instance = UserPreferences._internal();
 
@@ -21,29 +22,28 @@ class UserPreferences extends ChangeNotifier {
   String _weightUnit = 'lbs';
   String _heightUnit = 'cm';
   
-  // These are ALWAYS stored in cm and kg under the hood
+  // Base Units (Stored as integers for weight to match DB!)
   double _baseHeightCm = 0.0;
   int _baseWeightGrams = 0; 
 
   String get weightUnit => _weightUnit;
   String get heightUnit => _heightUnit;
   
-  // Getters that return the BASE values (useful for saving to DB or syncing)
+  // Raw getters if needed for analytics elsewhere
   double get rawHeightCm => _baseHeightCm;
-  int get rawWeightKg => _baseWeightGrams;
+  int get rawWeightGrams => _baseWeightGrams;
 
-  // --- NEW: Smart Getters ---
-  // These dynamically calculate the value based on the current unit preference!
+  // --- SMART GETTERS ---
   double get displayWeight {
     if (_weightUnit == 'lbs') {
-      return _baseWeightGrams * 2.20462;
+      return (_baseWeightGrams / 1000.0) * 2.20462;
     }
-    return _baseWeightGrams / 1000.0;
+    return _baseWeightGrams / 1000.0; // Return as kg for display
   }
 
   double get displayHeight {
     if (_heightUnit == 'ft') {
-      return _baseHeightCm / 2.54; // Returns total inches
+      return _baseHeightCm / 2.54; // Returns total inches for the UI to split
     }
     return _baseHeightCm;
   }
@@ -57,7 +57,7 @@ class UserPreferences extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Unit toggles no longer do ANY math. They just update the string!
+  // Unit toggles just update the string—no math needed!
   Future<void> setWeightUnit(String unit) async {
     if (_weightUnit != unit) {
       _weightUnit = unit;
@@ -74,10 +74,10 @@ class UserPreferences extends ChangeNotifier {
     }
   }
 
-  // --- NEW: Smart Setters ---
-  // The UI passes in the number it sees (e.g., 190 lbs). This converts it back to the base unit for storage.
+  // --- SMART SETTERS ---
   Future<void> saveWeightFromUI(double enteredWeight) async {
     int weightInGrams;
+    
     if (_weightUnit == 'lbs') {
       weightInGrams = ((enteredWeight / 2.20462) * 1000).round();
     } else {
@@ -86,15 +86,21 @@ class UserPreferences extends ChangeNotifier {
     
     if (_baseWeightGrams != weightInGrams) {
       _baseWeightGrams = weightInGrams;
+      
+      // Update local storage
       await _prefs.setInt(_weightGKey, weightInGrams);
+      
+      // Log to SQLite database
+      await DatabaseHelper.instance.logBodyWeight(weightInGrams);
+      
       notifyListeners();
     }
   }
 
   Future<void> saveHeightFromUI(double enteredHeight) async {
     double heightInCm = enteredHeight;
-    if (_heightUnit == 'ft') { // Assuming UI passed total inches
-      heightInCm = enteredHeight * 2.54; 
+    if (_heightUnit == 'ft') { 
+      heightInCm = enteredHeight * 2.54; // Converting total inches back to cm
     }
 
     if (_baseHeightCm != heightInCm) {
