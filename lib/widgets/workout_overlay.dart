@@ -280,18 +280,19 @@ class WorkoutOverlay extends StatefulWidget {
 }
 
 class _WorkoutOverlayState extends State<WorkoutOverlay> {
-  bool _isReordering = false;
+  // 1. Swap our old boolean for the explicit Edit Mode toggle
+  bool _isEditMode = false;
 
-@override
+  @override
   Widget build(BuildContext context) {
     return Consumer<WorkoutState>(
       builder: (context, workoutState, child) {
         return DraggableScrollableSheet(
-          minChildSize: 0.08,
+          minChildSize: 0.1,
           maxChildSize: 0.9,
           initialChildSize: 0.9,
           snap: true,
-          snapSizes: const [0.08, 0.9],
+          snapSizes: const [0.1, 0.9],
           builder: (BuildContext context, ScrollController scrollController) {
             return Container(
               decoration: BoxDecoration(
@@ -305,24 +306,22 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
                   ),
                 ],
               ),
-              // We return the CustomScrollView directly
               child: CustomScrollView(
-                controller: scrollController, // Hooked up for dragging
+                controller: scrollController,
                 slivers: [
-                  // 1. The Sticky, Draggable Header (Inline Layout)
+                  // 1. The Sticky, Draggable Header
                   SliverAppBar(
-                    primary: false,
+                    primary: false, 
                     pinned: true, 
                     automaticallyImplyLeading: false, 
                     backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                     surfaceTintColor: Colors.transparent, 
                     elevation: 0,
-                    toolbarHeight: 60, // Slightly more compact to fit perfectly in the minimized state
-                    titleSpacing: 16, // Gives horizontal padding to the timer and button
+                    toolbarHeight: 60,
+                    titleSpacing: 16,
                     title: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // The visual drag handle (Perfectly centered)
                         Container(
                           width: 40,
                           height: 4,
@@ -331,7 +330,6 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        // The Timer and End Button (Left and Right edges)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -347,46 +345,94 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
                     ),
                   ),
 
-                  // 2. The Exercise List
+                  // 2. The List Header & Edit Toggle
                   SliverToBoxAdapter(
-                    child: ReorderableListView(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        for (int index = 0; index < workoutState.exercises.length; index++)
-                          ExerciseTrackingWidget(
-                              exerciseName: workoutState.exercises[index].name,
-                              exerciseIndex: index,
-                              key: UniqueKey(),
-                              isReordering: _isReordering),
-                      ],
-                      onReorderStart: (index) {
-                        setState(() {
-                          _isReordering = true;
-                        });
-                      },
-                      onReorderEnd: (index) {
-                        setState(() {
-                          _isReordering = false;
-                        });
-                      },
-                      onReorder: (oldIndex, newIndex) {
-                        setState(() {
-                          if (newIndex > oldIndex) {
-                            newIndex -= 1;
-                          }
-                          final exercise = workoutState.exercises.removeAt(oldIndex);
-                          workoutState.exercises.insert(newIndex, exercise);
-                        });
-                      },
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Exercises',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          // The Toggle Button
+                          TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _isEditMode = !_isEditMode;
+                              });
+                            },
+                            icon: Icon(_isEditMode ? Icons.check : Icons.reorder),
+                            label: Text(_isEditMode ? 'Done' : 'Reorder'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+
+                  // 3. The Conditionally Rendered List
+                  SliverToBoxAdapter(
+                    child: _isEditMode
+                        // IF IN EDIT MODE: Render small, compact reorderable cards
+                        ? ReorderableListView(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            proxyDecorator: (Widget child, int index, Animation<double> animation) {
+                              return Material(
+                                color: Colors.transparent,
+                                elevation: 0,
+                                child: child,
+                              );
+                            },
+                            onReorder: (oldIndex, newIndex) {
+                              setState(() {
+                                if (newIndex > oldIndex) {
+                                  newIndex -= 1;
+                                }
+                                final exercise = workoutState.exercises.removeAt(oldIndex);
+                                workoutState.exercises.insert(newIndex, exercise);
+                              });
+                            },
+                            children: [
+                              for (int index = 0; index < workoutState.exercises.length; index++)
+                                Card(
+                                  key: ObjectKey(workoutState.exercises[index]),
+                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  elevation: 2,
+                                  child: ListTile(
+                                    title: Text(
+                                      workoutState.exercises[index].name,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    trailing: const Icon(Icons.drag_handle, color: Colors.grey),
+                                  ),
+                                ),
+                            ],
+                          )
+                        // IF NOT IN EDIT MODE: Render the normal, massive tracking widgets
+                        : Column(
+                            children: [
+                              for (int index = 0; index < workoutState.exercises.length; index++)
+                                ExerciseTrackingWidget(
+                                  exerciseName: workoutState.exercises[index].name,
+                                  exerciseIndex: index,
+                                  key: ObjectKey(workoutState.exercises[index]),
+                                  isReordering: false, 
+                                ),
+                            ],
+                          ),
+                  ),
                   
-                  // 3. The Actions at the bottom
-                  SliverToBoxAdapter(child: _buildAddExerciseButton(context, workoutState)),
-                  SliverToBoxAdapter(child: _buildCancelWorkoutButton(context, workoutState)),
+                  // 4. The Actions at the bottom
+                  // (We hide these while in edit mode to keep the UI perfectly clean)
+                  if (!_isEditMode) ...[
+                    SliverToBoxAdapter(child: _buildAddExerciseButton(context, workoutState)),
+                    SliverToBoxAdapter(child: _buildCancelWorkoutButton(context, workoutState)),
+                  ],
                   
-                  // Optional: A little padding at the very bottom so buttons aren't cut off
                   const SliverToBoxAdapter(child: SizedBox(height: 32)), 
                 ],
               ),
@@ -397,13 +443,13 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
     );
   }
 
-  Widget _buildAddExerciseButton(
-      BuildContext context, WorkoutState workoutState) {
+  Widget _buildAddExerciseButton(BuildContext context, WorkoutState workoutState) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: ElevatedButton(
         child: const Text('Add Exercise'),
         onPressed: () async {
+          // ... [Your existing logic stays the same] ...
           final db = Provider.of<Database>(context, listen: false);
           final result = await showDialog<String>(
             context: context,
@@ -425,7 +471,7 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
     );
   }
 
-  _buildCancelWorkoutButton(BuildContext context, WorkoutState workoutState) {
+  Widget _buildCancelWorkoutButton(BuildContext context, WorkoutState workoutState) {
     return TextButton(
       onPressed: () => showDialog(
         context: context,
@@ -455,7 +501,7 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
     );
   }
 
-  _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
+  Widget _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
     final historyProvider = context.read<HistoryProvider>();
     return TextButton(
       onPressed: () => showDialog(
@@ -481,6 +527,7 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
       child: Text(
           style: TextStyle(
             color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
           ),
           "End Workout"),
     );
