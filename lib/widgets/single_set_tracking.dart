@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
-import 'package:workout_tracker/widgets/workout_overlay.dart';
+import 'package:workout_tracker/providers/workout_provider.dart';
 
 class PreviousSetData {
   final String weight;

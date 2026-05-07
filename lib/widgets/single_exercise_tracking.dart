@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/providers/workout_provider.dart';
 import 'single_set_tracking.dart';
-import 'workout_overlay.dart';
 
 class ExerciseTrackingWidget extends StatelessWidget {
   final String exerciseName;

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:workout_tracker/widgets/workout_overlay.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
 import '../widgets/template_preview.dart';
 import '../models/workout_model.dart';
 import '../providers/history_provider.dart';
+import '../providers/workout_provider.dart';
 import '../services/db_helpers.dart';
 
 class HomeScreen extends StatelessWidget {

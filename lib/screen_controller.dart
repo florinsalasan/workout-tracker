@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/widgets/workout_overlay.dart';
+import 'package:workout_tracker/providers/workout_provider.dart';
 import 'screens/screen_home.dart';
 import 'screens/screen_history.dart';
 import 'screens/screen_analytics.dart';
