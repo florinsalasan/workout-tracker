@@ -231,6 +231,48 @@ class WorkoutState extends ChangeNotifier {
     }
   }
 
+  Future<void> swapExercise(int exerciseIndex, String newExerciseName, BuildContext context) async {
+    if (exerciseIndex >= _exercises.length) return;
+
+    final currentExercise = _exercises[exerciseIndex];
+
+    // No-op if the user picked the same exercise
+    if (currentExercise.name == newExerciseName) return;
+
+    // Fetch last-performed sets for the new exercise to use as previous-data hints
+    final dbHelper = DatabaseHelper.instance;
+    final lastSets = await dbHelper.getLastCompletedSets(newExerciseName);
+
+    // Build the replacement exercise with the same name but carry over the user's
+    // already-entered weight/reps/isCompleted values from the current sets.
+    final newExercise = OverlayExercise(name: newExerciseName);
+    for (int i = 0; i < currentExercise.sets.length; i++) {
+      final existingSet = currentExercise.sets[i];
+
+      // Use the new exercise's previous data for this slot if available,
+      // otherwise fall back to '0'/'0'.
+      final PreviousSetData previousData;
+      if (i < lastSets.length) {
+        previousData = PreviousSetData(
+          lastSets[i].weight.toStringAsFixed(1),
+          lastSets[i].reps.toString(),
+        );
+      } else {
+        previousData = const PreviousSetData('0', '0');
+      }
+
+      newExercise.sets.add(ExerciseSet(
+        weight: existingSet.weight,
+        reps: existingSet.reps,
+        isCompleted: existingSet.isCompleted,
+        previousData: previousData,
+      ));
+    }
+
+    _exercises[exerciseIndex] = newExercise;
+    notifyListeners();
+  }
+
   void removeSet(int exerciseIndex, int setIndex) {
     if (exerciseIndex < _exercises.length &&
         setIndex < _exercises[exerciseIndex].sets.length) {

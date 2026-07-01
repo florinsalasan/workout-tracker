@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/providers/workout_provider.dart';
+import 'add_exercise_dialog.dart';
 import 'single_set_tracking.dart';
 
 class ExerciseTrackingWidget extends StatelessWidget {
@@ -37,11 +39,17 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (!isReordering)
+                if (!isReordering) ...[
+                  IconButton(
+                    tooltip: 'Swap exercise',
+                    onPressed: () => _swapExercise(context, exerciseIndex),
+                    icon: const Icon(Icons.swap_horiz),
+                  ),
                   IconButton(
                     onPressed: () => _removeExercise(context, exerciseIndex),
                     icon: const Icon(Icons.clear),
                   ),
+                ],
               ],
             ),
             if (!isReordering) ...[
@@ -155,4 +163,18 @@ void _removeExercise(BuildContext context, int index) {
       ],
     ),
   );
+}
+
+void _swapExercise(BuildContext context, int index) async {
+  final db = Provider.of<Database>(context, listen: false);
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => Provider<Database>.value(
+      value: db,
+      child: const ExerciseSelectionDialog(),
+    ),
+  );
+  if (result != null && context.mounted) {
+    context.read<WorkoutState>().swapExercise(index, result, context);
+  }
 }
