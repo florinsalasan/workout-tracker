@@ -30,15 +30,18 @@ class ExerciseTrackingWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: Text(
-                    exerciseName,
-                    style: Theme.of(context).textTheme.titleLarge,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: Text(
+                      exerciseName,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 if (!isReordering) ...[
                   IconButton(
                     tooltip: 'Swap exercise',

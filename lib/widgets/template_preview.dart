@@ -34,7 +34,9 @@ class TemplatePreviewCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
             children: [
+              // Title row — always visible
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -49,7 +51,6 @@ class TemplatePreviewCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // A small visual indicator that there's a menu
                   GestureDetector(
                     onTap: () => _showOptionsSheet(context),
                     child: Icon(
@@ -60,31 +61,11 @@ class TemplatePreviewCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Exercises: ${template.exercises.length}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              const SizedBox(height: 4),
+              // Exercise list — fills remaining space and clips cleanly
+              Expanded(
+                child: _ExerciseList(exercises: template.exercises),
               ),
-              ...template.exercises.take(3).map((exercise) => Text(
-                    exercise.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )),
-              if (template.exercises.length > 3)
-                Text(
-                  "...",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
             ],
           ),
         ),
@@ -198,6 +179,92 @@ class TemplatePreviewCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Renders as many exercise names as fit in the available height,
+// then shows "+N more" if any were clipped.
+class _ExerciseList extends StatelessWidget {
+  final List<CompletedExercise> exercises;
+
+  const _ExerciseList({required this.exercises});
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    final countStyle = TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxHeight = constraints.maxHeight;
+
+        // Measure line heights using a TextPainter so we know how many fit.
+        double usedHeight = 0;
+        int visibleCount = 0;
+
+        // Account for the "Exercises: N" count line first.
+        final countPainter = TextPainter(
+          text: TextSpan(text: 'Exercises: ${exercises.length}', style: countStyle),
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: constraints.maxWidth);
+        usedHeight += countPainter.height + 2; // 2px row gap
+
+        // Then try to fit each exercise name.
+        for (int i = 0; i < exercises.length; i++) {
+          final painter = TextPainter(
+            text: TextSpan(text: exercises[i].name, style: textStyle),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+          )..layout(maxWidth: constraints.maxWidth);
+
+          final lineHeight = painter.height + 2;
+          final remaining = exercises.length - i;
+
+          // If this is not the last exercise, reserve room for a "+N more" line.
+          final needsOverflowLine = remaining > 1;
+          final overflowLineHeight = needsOverflowLine ? lineHeight : 0;
+
+          if (usedHeight + lineHeight + overflowLineHeight > maxHeight) {
+            // Can't fit this line — stop here.
+            break;
+          }
+
+          usedHeight += lineHeight;
+          visibleCount++;
+        }
+
+        final hiddenCount = exercises.length - visibleCount;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Exercises: ${exercises.length}',
+              style: countStyle,
+            ),
+            for (int i = 0; i < visibleCount; i++)
+              Text(
+                exercises[i].name,
+                style: textStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (hiddenCount > 0)
+              Text(
+                '+$hiddenCount more',
+                style: textStyle,
+              ),
+          ],
+        );
+      },
     );
   }
 }

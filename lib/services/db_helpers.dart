@@ -572,6 +572,66 @@ class DatabaseHelper {
           'weight_g': weightInGrams,
         });
     }
+
+  /// Returns all body weight log entries ordered oldest → newest.
+  Future<List<Map<String, dynamic>>> getBodyWeightHistory() async {
+    final db = await database;
+    return await db.query(
+      'body_weight_log',
+      columns: ['date', 'weight_g'],
+      orderBy: 'date ASC',
+    );
+  }
+
+  /// Returns one point per workout session for [exerciseName].
+  /// The value is max(reps × weight) across all sets in that session —
+  /// the "best set" by total load, which reflects progress even when
+  /// weight stays the same but reps increase.
+  Future<List<Map<String, dynamic>>> getExerciseBestSetHistory(
+      String exerciseName) async {
+    final db = await database;
+    // Use a subquery to get the actual set row with the highest reps*weight
+    // per session, avoiding undefined behaviour from non-aggregated columns.
+    return await db.rawQuery('''
+      SELECT
+        cw.date     AS date,
+        cs.reps     AS reps,
+        cs.weight   AS weight
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+      WHERE ce.name = ?
+        AND cs.rowid = (
+          SELECT cs2.rowid
+          FROM completed_sets cs2
+          JOIN completed_exercises ce2 ON cs2.exercise_id = ce2.id
+          WHERE ce2.workout_id = cw.id
+            AND ce2.name = ce.name
+          ORDER BY cs2.reps * cs2.weight DESC
+          LIMIT 1
+        )
+      GROUP BY cw.id
+      ORDER BY cw.date ASC
+    ''', [exerciseName]);
+  }
+
+  /// Returns one point per workout session for [exerciseName].
+  /// The value is the heaviest single-set weight lifted that session.
+  Future<List<Map<String, dynamic>>> getExerciseMaxWeightHistory(
+      String exerciseName) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT
+        cw.date          AS date,
+        MAX(cs.weight)   AS max_weight
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+      WHERE ce.name = ?
+      GROUP BY cw.id
+      ORDER BY cw.date ASC
+    ''', [exerciseName]);
+  }
 }
 
 class Exercise {
