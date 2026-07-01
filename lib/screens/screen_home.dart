@@ -1,12 +1,11 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:workout_tracker/widgets/workout_overlay.dart';
 import 'package:workout_tracker/widgets/sliver_layout.dart';
 
 import '../widgets/template_preview.dart';
 import '../models/workout_model.dart';
 import '../providers/history_provider.dart';
+import '../providers/workout_provider.dart';
 import '../services/db_helpers.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -33,8 +32,8 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(
                     height: 35.0,
                     width: double.infinity,
-                    child: CupertinoButton.filled(
-                      padding: const EdgeInsets.all(0),
+                    child: FilledButton(
+                      // padding: const EdgeInsets.all(0),
                       child: const Text(
                           style: TextStyle(fontWeight: FontWeight.bold),
                           'Start New Workout'),
@@ -72,7 +71,7 @@ class HomeScreen extends StatelessWidget {
           future: DatabaseHelper.instance.getWorkoutTemplates(),
           builder: (context, templateSnapshot) {
             if (templateSnapshot.connectionState == ConnectionState.waiting) {
-              return const CupertinoActivityIndicator();
+              return const CircularProgressIndicator();
             }
             if (!templateSnapshot.hasData || templateSnapshot.data!.isEmpty) {
               return Column(
@@ -86,8 +85,8 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     height: 35.0,
-                    child: CupertinoButton.filled(
-                      padding: const EdgeInsets.all(0),
+                    child: FilledButton(
+                      // padding: const EdgeInsets.all(0),
                       child: const Text(
                           style: TextStyle(fontWeight: FontWeight.bold),
                           'Create new template'),
@@ -108,7 +107,7 @@ class HomeScreen extends StatelessWidget {
               builder: (context, workoutSnapshot) {
                 if (workoutSnapshot.connectionState ==
                     ConnectionState.waiting) {
-                  return const CupertinoActivityIndicator();
+                  return const CircularProgressIndicator();
                 }
                 if (!workoutSnapshot.hasData) {
                   return const Text("Error loading workouts");
@@ -158,8 +157,8 @@ class HomeScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       height: 35.0,
-                      child: CupertinoButton.filled(
-                        padding: const EdgeInsets.all(0),
+                      child: FilledButton(
+                        // padding: const EdgeInsets.all(0),
                         child: const Text(
                             style: TextStyle(fontWeight: FontWeight.bold),
                             'Create new template'),

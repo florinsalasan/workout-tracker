@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'screen_controller.dart';
 
@@ -8,23 +7,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return const CupertinoApp(
-        home: MainScreen(),
-        localizationsDelegates: [
-          DefaultMaterialLocalizations.delegate,
-          DefaultCupertinoLocalizations.delegate,
-          DefaultWidgetsLocalizations.delegate,
-        ],
-      );
-    } else {
-      return MaterialApp(
-        title: 'Workout Tracker',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-        ),
-        home: const MainScreen(),
-      );
-    }
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple
+    );
+    final darkColorScheme = ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple,
+      brightness: Brightness.dark
+    );
+    return MaterialApp(
+      title: 'Workout Tracker',
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.system,
+      theme: ThemeData(
+        colorScheme: colorScheme,
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData(
+        colorScheme: darkColorScheme,
+        useMaterial3: true,
+      ),
+      home: const MainScreen(),
+    );
   }
 }

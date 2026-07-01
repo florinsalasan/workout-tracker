@@ -1,8 +1,10 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/providers/workout_provider.dart';
+import 'add_exercise_dialog.dart';
 import 'single_set_tracking.dart';
-import 'workout_overlay.dart';
 
 class ExerciseTrackingWidget extends StatelessWidget {
   final String exerciseName;
@@ -33,16 +35,21 @@ class ExerciseTrackingWidget extends StatelessWidget {
                       horizontal: 16.0, vertical: 8.0),
                   child: Text(
                     exerciseName,
-                    style:
-                        CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 const Spacer(),
-                if (!isReordering)
-                  CupertinoButton(
-                    onPressed: () => _removeExercise(context, exerciseIndex),
-                    child: const Icon(CupertinoIcons.clear),
+                if (!isReordering) ...[
+                  IconButton(
+                    tooltip: 'Swap exercise',
+                    onPressed: () => _swapExercise(context, exerciseIndex),
+                    icon: const Icon(Icons.swap_horiz),
                   ),
+                  IconButton(
+                    onPressed: () => _removeExercise(context, exerciseIndex),
+                    icon: const Icon(Icons.clear),
+                  ),
+                ],
               ],
             ),
             if (!isReordering) ...[
@@ -82,18 +89,18 @@ class ExerciseTrackingWidget extends StatelessWidget {
                   background: Container(
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20.0),
-                    color: CupertinoColors.destructiveRed,
+                    color: Colors.red,
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Icon(
-                          CupertinoIcons.trash,
-                          color: CupertinoColors.white,
+                          Icons.delete,
+                          color: Colors.white,
                         ),
                         SizedBox(width: 5),
                         Text(
                           'Delete',
-                          style: TextStyle(color: CupertinoColors.white),
+                          style: TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
@@ -114,7 +121,7 @@ class ExerciseTrackingWidget extends StatelessWidget {
               }),
               Padding(
                 padding: const EdgeInsets.all(10.0),
-                child: CupertinoButton(
+                child: TextButton(
                   onPressed: () {
                     workoutState.addSet(exerciseIndex, 0, 0);
                   },
@@ -130,21 +137,23 @@ class ExerciseTrackingWidget extends StatelessWidget {
 }
 
 void _removeExercise(BuildContext context, int index) {
-  showCupertinoModalPopup(
+  showDialog(
     context: context,
-    builder: (BuildContext context) => CupertinoAlertDialog(
+    builder: (BuildContext context) => AlertDialog(
       title: const Text("Alert"),
       content: const Text("Are you sure you want to remove this exercise?"),
-      actions: <CupertinoDialogAction>[
-        CupertinoDialogAction(
+      actions: <Widget>[
+        TextButton(
           onPressed: () {
             Navigator.pop(context);
           },
           child: const Text('Cancel'),
         ),
-        CupertinoDialogAction(
-          isDefaultAction: true,
-          isDestructiveAction: true,
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+            textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           onPressed: () {
             context.read<WorkoutState>().removeExercise(index);
             Navigator.pop(context);
@@ -154,4 +163,18 @@ void _removeExercise(BuildContext context, int index) {
       ],
     ),
   );
+}
+
+void _swapExercise(BuildContext context, int index) async {
+  final db = Provider.of<Database>(context, listen: false);
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => Provider<Database>.value(
+      value: db,
+      child: const ExerciseSelectionDialog(),
+    ),
+  );
+  if (result != null && context.mounted) {
+    context.read<WorkoutState>().swapExercise(index, result, context);
+  }
 }

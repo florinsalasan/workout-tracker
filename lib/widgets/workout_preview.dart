@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:workout_tracker/services/date_time_utils.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 
@@ -10,50 +10,45 @@ class WorkoutPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemBackground,
-          border: const Border(
-              bottom: BorderSide(color: CupertinoColors.separator)),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoColors.systemGrey.withOpacity(0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              formatDate(workout),
-              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-            ),
-            const SizedBox(
-              height: 4,
-            ),
-            Text(
-              'Duration: ${formatDuration(workout.durationInSeconds)}',
-              style: const TextStyle(color: CupertinoColors.secondaryLabel),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${workout.exercises.length} exercises:',
-              style: const TextStyle(
-                color: CupertinoColors.secondaryLabel,
-                fontWeight: FontWeight.w600,
+    // Swapped the custom Container for a standard Material Card
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      elevation: 2, // Gives it a slight shadow
+      clipBehavior: Clip.antiAlias, // Ensures the tap ripple stays inside the rounded corners
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                formatDate(workout),
+                // Switched from CupertinoTheme to Material Theme
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
-            ),
-            const SizedBox(height: 8),
-            ..._buildExerciseList(context),
-          ],
+              const SizedBox(
+                height: 4,
+              ),
+              Text(
+                'Duration: ${formatDuration(workout.durationInSeconds)}',
+                // Using onSurfaceVariant for secondary/gray text
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${workout.exercises.length} exercises:',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._buildExerciseList(context),
+            ],
+          ),
         ),
       ),
     );
@@ -67,8 +62,9 @@ class WorkoutPreview extends StatelessWidget {
         padding: const EdgeInsets.only(left: 8, bottom: 4),
         child: Row(
           children: [
-            const Icon(CupertinoIcons.checkmark_circle_fill,
-                size: 14, color: CupertinoColors.activeGreen),
+            // Swapped Cupertino icon for Material icon
+            const Icon(Icons.check_circle,
+                size: 16, color: Colors.green),
             const SizedBox(width: 8),
             Text(workout.exercises[i].name,
                 style: const TextStyle(fontSize: 14)),
@@ -82,8 +78,8 @@ class WorkoutPreview extends StatelessWidget {
         padding: const EdgeInsets.only(left: 8, top: 4),
         child: Text(
           '... and ${workout.exercises.length - 3} more',
-          style: const TextStyle(
-            color: CupertinoColors.secondaryLabel,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 14,
           ),
         ),

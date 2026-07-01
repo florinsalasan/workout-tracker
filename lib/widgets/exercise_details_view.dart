@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../services/db_helpers.dart';
@@ -51,30 +51,37 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const CupertinoPageScaffold(
-        navigationBar: CupertinoNavigationBar(middle: Text('Loading...')),
-        child: Center(child: CupertinoActivityIndicator()),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Loading...')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(widget.exercise.name),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.exercise.name),
       ),
-      child: SafeArea(
+      body: SafeArea(
         child: Column(
           children: [
-            CustomCupertinoSegmentedControl(
-              children: const {
-                0: Text('Personal Bests'),
-                1: Text('History'),
-              },
-              onValueChanged: (int value) {
-                setState(() {
-                  _selectedIndex = value;
-                });
-              },
-              groupValue: _selectedIndex,
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<int>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('Personal Bests')),
+                    ButtonSegment(value: 1, label: Text('History')),
+                  ],
+                  selected: {_selectedIndex},
+                  onSelectionChanged: (Set<int> newSelection) {
+                    setState(() {
+                      _selectedIndex = newSelection.first;
+                    });
+                  },
+                ),
+              ),
             ),
             Expanded(
               child: _selectedIndex == 0
@@ -84,40 +91,6 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class CustomCupertinoSegmentedControl extends StatelessWidget {
-  final Map<int, Widget> children;
-  final ValueChanged<int> onValueChanged;
-  final int groupValue;
-
-  const CustomCupertinoSegmentedControl({
-    super.key,
-    required this.children,
-    required this.onValueChanged,
-    required this.groupValue,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: CupertinoColors.systemGrey4,
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: CupertinoSegmentedControl<int>(
-        children: children,
-        onValueChanged: onValueChanged,
-        groupValue: groupValue,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       ),
     );
   }
@@ -144,14 +117,37 @@ class PerformanceHistoryTab extends StatelessWidget {
         final date = groupedHistory.keys.elementAt(index);
         final exercises = groupedHistory[date]!;
 
-        return CupertinoListSection(
-          header: Text(DateFormat('MMMM d, yyyy').format(DateTime.parse(date))),
-          children: exercises.map((exercise) {
-            return CupertinoListTile(
-              title: Text(
-                  '${WeightConverter.convertFromGrams(exercise['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${exercise['reps']} reps'),
-            );
-          }).toList(),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                DateFormat('MMMM d, yyyy').format(DateTime.parse(date)),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: exercises.map((exercise) {
+                  return ListTile(
+                    title: Text(
+                        '${WeightConverter.convertFromGrams(exercise['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${exercise['reps']} reps'),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -185,38 +181,70 @@ class PBsAndRecordsTab extends StatelessWidget {
 
     return ListView(
       children: [
-        CupertinoListSection(
-          header: const Text('Overall Records'),
-          children: [
-            if (bestTotal != null)
-              CupertinoListTile(
-                title: const Text('Best Total (Weight x Reps):'),
-                // trailing: Text('${bestTotal['total']}'),
-                trailing: Text(
-                    '${WeightConverter.convertFromGrams(bestTotal['total'].round(), weightUnit).toStringAsFixed(1)} $weightUnit'),
-              ),
-            if (heaviestWeight != null)
-              CupertinoListTile(
-                title: const Text('Heaviest Weight:'),
-                // trailing: Text('${heaviestWeight['weight']}'),
-                trailing: Text(
-                    '${WeightConverter.convertFromGrams(heaviestWeight['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit'),
-              ),
-          ],
+        _buildSectionHeader(context, 'Overall Records'),
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              if (bestTotal != null)
+                ListTile(
+                  title: const Text('Best Total (Weight x Reps):'),
+                  trailing: Text(
+                      '${WeightConverter.convertFromGrams(bestTotal['total'].round(), weightUnit).toStringAsFixed(1)} $weightUnit',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              if (heaviestWeight != null)
+                ListTile(
+                  title: const Text('Heaviest Weight:'),
+                  trailing: Text(
+                      '${WeightConverter.convertFromGrams(heaviestWeight['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
         ),
-        CupertinoListSection(
-          header: const Text('Personal Bests by Reps'),
-          children: records.map((record) {
-            return CupertinoListTile(
-              title: records.first != record
-                  ? Text('${record.reps} reps:')
-                  : Text('${record.reps} rep:'),
-              trailing: Text(
-                  '${WeightConverter.convertFromGrams(record.weight.round(), weightUnit).toStringAsFixed(1)} $weightUnit'),
-            );
-          }).toList(),
+        const SizedBox(height: 16),
+        _buildSectionHeader(context, 'Personal Bests by Reps'),
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: records.map((record) {
+              return ListTile(
+                title: records.first != record
+                    ? Text('${record.reps} reps:')
+                    : Text('${record.reps} rep:'),
+                trailing: Text(
+                    '${WeightConverter.convertFromGrams(record.weight.round(), weightUnit).toStringAsFixed(1)} $weightUnit',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              );
+            }).toList(),
+          ),
         )
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
     );
   }
 }

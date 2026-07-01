@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
 import 'package:workout_tracker/widgets/workout_details_view.dart';
@@ -19,7 +19,7 @@ class HistoryScreen extends StatelessWidget {
             future: historyProvider.getCompletedWorkouts(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CupertinoActivityIndicator());
+                return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -47,37 +47,35 @@ class HistoryScreen extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20.0),
-        color: CupertinoColors.destructiveRed,
+        color: Colors.red,
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Icon(
-              CupertinoIcons.trash,
-              color: CupertinoColors.white,
+              Icons.delete,
+              color: Colors.white,
             ),
             SizedBox(width: 5),
             Text(
               'Delete',
-              style: TextStyle(color: CupertinoColors.white),
+              style: TextStyle(color: Colors.white),
             ),
           ],
         ),
       ),
       confirmDismiss: (direction) async {
-        return await showCupertinoDialog(
+        return await showDialog(
           context: context,
-          builder: (BuildContext context) => CupertinoAlertDialog(
+          builder: (BuildContext context) => AlertDialog(
             title: const Text("Delete Workout"),
             content:
                 const Text('Are you sure you want to delete this workout?'),
             actions: [
-              CupertinoDialogAction(
+              TextButton(
                 child: const Text('Cancel'),
                 onPressed: () => Navigator.of(context).pop(false),
               ),
-              CupertinoDialogAction(
-                isDefaultAction: true,
-                isDestructiveAction: true,
+              FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('Delete'),
               )
@@ -98,7 +96,7 @@ class HistoryScreen extends StatelessWidget {
 
   void _showWorkoutDetails(BuildContext context, CompletedWorkout workout) {
     Navigator.of(context).push(
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => WorkoutDetailsView(workout: workout),
       ),
     );

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
 class CustomLayout extends StatelessWidget {
   final String title;
@@ -8,11 +8,13 @@ class CustomLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      child: CustomScrollView(
+    return Scaffold(
+      body: CustomScrollView(
         slivers: <Widget>[
-          CupertinoSliverNavigationBar(
-            largeTitle: Text(title),
+          SliverAppBar.large(
+            title: Text(title),
+            // Optional: You can add properties here like floating: true, pinned: true,
+            // or even background colors if you want to customize the header further.
           ),
           SliverFillRemaining(
             hasScrollBody: true,
