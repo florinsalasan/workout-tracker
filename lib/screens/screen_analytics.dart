@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../models/analytics_models.dart';
@@ -18,8 +19,13 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  static const _prefsKey = 'analytics_tracked_exercises';
+
   /// Exercise names the user has pinned to the analytics view.
-  final List<String> _trackedExercises = [];
+  /// Each entry is "exerciseName|subtitle" so we can track both charts
+  /// for the same exercise independently.
+  final List<_TrackedChart> _trackedCharts = [];
+  bool _loaded = false;
 
   late final UserPreferences _prefs;
 
@@ -27,9 +33,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void initState() {
     super.initState();
     _prefs = UserPreferences();
-    // Rebuild whenever the weight unit changes so cards re-fetch with the
-    // correct unit.
     _prefs.addListener(_onPrefsChanged);
+    _loadTracked();
   }
 
   @override
@@ -42,25 +47,51 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Build the two data sources for an exercise.
-  ///
-  /// The weight unit is read **inside** the fetchData closure so it is always
-  /// current at fetch time, not captured at construction time.
-  List<AnalyticsDataSource> _sourcesFor(String exerciseName) {
+  // ── Persistence ────────────────────────────────────────────────────────────
+
+  Future<void> _loadTracked() async {
+    final sp = await SharedPreferences.getInstance();
+    final saved = sp.getStringList(_prefsKey) ?? [];
+    setState(() {
+      _trackedCharts.clear();
+      for (final entry in saved) {
+        final parts = entry.split('|');
+        if (parts.length == 2) {
+          _trackedCharts.add(_TrackedChart(
+            exerciseName: parts[0],
+            chartType: parts[1],
+          ));
+        }
+      }
+      _loaded = true;
+    });
+  }
+
+  Future<void> _saveTracked() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setStringList(
+      _prefsKey,
+      _trackedCharts
+          .map((c) => '${c.exerciseName}|${c.chartType}')
+          .toList(),
+    );
+  }
+
+  // ── Data sources ───────────────────────────────────────────────────────────
+
+  AnalyticsDataSource _sourceFor(_TrackedChart chart) {
     final db = DatabaseHelper.instance;
-    // Read once for labels — these are used as Keys too so a unit change
-    // triggers new card instances (see _buildCardList).
     final weightUnit = _prefs.weightUnit;
 
-    return [
-      AnalyticsDataSource(
-        title: exerciseName,
+    if (chart.chartType == _TrackedChart.bestSet) {
+      return AnalyticsDataSource(
+        title: chart.exerciseName,
         subtitle: 'Best set (reps × weight)',
         yAxisLabel: '$weightUnit·reps',
         fetchData: () async {
-          // Always read prefs fresh inside the closure.
           final unit = UserPreferences().weightUnit;
-          final rows = await db.getExerciseBestSetHistory(exerciseName);
+          final rows =
+              await db.getExerciseBestSetHistory(chart.exerciseName);
           return rows.map((r) {
             final weightGrams = (r['weight'] as num).round();
             final reps = r['reps'] as int;
@@ -70,19 +101,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             return ChartDataPoint(
               date: DateTime.parse(r['date'] as String),
               value: bestTotal,
-              label: '${displayWeight.toStringAsFixed(1)} $unit × $reps reps'
+              label:
+                  '${displayWeight.toStringAsFixed(1)} $unit × $reps reps'
                   ' = ${bestTotal.toStringAsFixed(1)} $unit·reps',
             );
           }).toList();
         },
-      ),
-      AnalyticsDataSource(
-        title: exerciseName,
+      );
+    } else {
+      return AnalyticsDataSource(
+        title: chart.exerciseName,
         subtitle: 'Max weight lifted',
         yAxisLabel: weightUnit,
         fetchData: () async {
           final unit = UserPreferences().weightUnit;
-          final rows = await db.getExerciseMaxWeightHistory(exerciseName);
+          final rows =
+              await db.getExerciseMaxWeightHistory(chart.exerciseName);
           return rows.map((r) {
             final weightGrams = (r['max_weight'] as num).round();
             final displayWeight =
@@ -94,9 +128,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             );
           }).toList();
         },
-      ),
-    ];
+      );
+    }
   }
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
 
   Future<void> _addExercise(BuildContext context) async {
     final db = Provider.of<Database>(context, listen: false);
@@ -107,10 +143,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: const ExerciseSelectionDialog(),
       ),
     );
-    if (result != null && !_trackedExercises.contains(result)) {
-      setState(() => _trackedExercises.add(result));
+    if (result == null) return;
+
+    // Add both chart types for the exercise if not already tracked.
+    bool added = false;
+    for (final type in [_TrackedChart.bestSet, _TrackedChart.maxWeight]) {
+      final chart =
+          _TrackedChart(exerciseName: result, chartType: type);
+      if (!_trackedCharts.any((c) =>
+          c.exerciseName == chart.exerciseName &&
+          c.chartType == chart.chartType)) {
+        _trackedCharts.add(chart);
+        added = true;
+      }
+    }
+    if (added) {
+      setState(() {});
+      await _saveTracked();
     }
   }
+
+  Future<void> _removeChart(_TrackedChart chart) async {
+    setState(() => _trackedCharts.remove(chart));
+    await _saveTracked();
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -118,9 +176,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       title: 'Analytics',
       body: SafeArea(
         top: false,
-        child: _trackedExercises.isEmpty
-            ? _buildEmptyState(context)
-            : _buildCardList(context),
+        child: !_loaded
+            ? const Center(child: CircularProgressIndicator())
+            : _trackedCharts.isEmpty
+                ? _buildEmptyState(context)
+                : _buildCardList(context),
       ),
     );
   }
@@ -159,29 +219,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildCardList(BuildContext context) {
     final weightUnit = _prefs.weightUnit;
 
-    // Each tracked exercise produces two cards (best set + max weight).
-    // The ValueKey includes the weight unit so Flutter replaces the card
-    // widget entirely when the unit changes, forcing AnalyticsPreviewCard
-    // to re-run initState and re-fetch with the new unit.
-    final entries = <Widget>[];
-    for (final name in _trackedExercises) {
-      for (final source in _sourcesFor(name)) {
-        entries.add(
-          AnalyticsPreviewCard(
-            key: ValueKey('${name}_${source.subtitle}_$weightUnit'),
-            source: source,
-          ),
-        );
-      }
-    }
-
     return Stack(
       children: [
         ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          itemCount: entries.length,
+          itemCount: _trackedCharts.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (_, index) => entries[index],
+          itemBuilder: (_, index) {
+            final chart = _trackedCharts[index];
+            final source = _sourceFor(chart);
+            return AnalyticsPreviewCard(
+              // Key includes unit so the card fully rebuilds on unit change.
+              key: ValueKey(
+                  '${chart.exerciseName}_${chart.chartType}_$weightUnit'),
+              source: source,
+              onRemove: () => _removeChart(chart),
+            );
+          },
         ),
         Positioned(
           bottom: 16,
@@ -196,4 +250,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ],
     );
   }
+}
+
+// ── Small data class ──────────────────────────────────────────────────────────
+
+class _TrackedChart {
+  static const bestSet = 'bestSet';
+  static const maxWeight = 'maxWeight';
+
+  final String exerciseName;
+  final String chartType;
+
+  const _TrackedChart({required this.exerciseName, required this.chartType});
+
+  @override
+  bool operator ==(Object other) =>
+      other is _TrackedChart &&
+      other.exerciseName == exerciseName &&
+      other.chartType == chartType;
+
+  @override
+  int get hashCode => Object.hash(exerciseName, chartType);
 }
