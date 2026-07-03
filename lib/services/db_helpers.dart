@@ -572,6 +572,46 @@ class DatabaseHelper {
           'weight_g': weightInGrams,
         });
     }
+
+  /// Returns one point per workout session for [exerciseName].
+  /// The value is max(reps × weight) across all sets in that session —
+  /// the "best set" by total load, which reflects progress even when
+  /// weight stays the same but reps increase.
+  Future<List<Map<String, dynamic>>> getExerciseBestSetHistory(
+      String exerciseName) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT
+        cw.date                          AS date,
+        MAX(cs.reps * cs.weight)         AS best_total,
+        cs.reps                          AS reps,
+        cs.weight                        AS weight
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+      WHERE ce.name = ?
+      GROUP BY cw.id
+      ORDER BY cw.date ASC
+    ''', [exerciseName]);
+  }
+
+  /// Returns one point per workout session for [exerciseName].
+  /// The value is the heaviest single-set weight lifted that session.
+  Future<List<Map<String, dynamic>>> getExerciseMaxWeightHistory(
+      String exerciseName) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT
+        cw.date          AS date,
+        MAX(cs.weight)   AS max_weight
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+      WHERE ce.name = ?
+      GROUP BY cw.id
+      ORDER BY cw.date ASC
+    ''', [exerciseName]);
+  }
 }
 
 class Exercise {
