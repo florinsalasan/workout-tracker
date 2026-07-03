@@ -18,13 +18,39 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  /// Each entry is the exercise name the user has pinned to the analytics view.
+  /// Exercise names the user has pinned to the analytics view.
   final List<String> _trackedExercises = [];
 
-  /// Build the two data sources (best set + max weight) for an exercise name.
+  late final UserPreferences _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefs = UserPreferences();
+    // Rebuild whenever the weight unit changes so cards re-fetch with the
+    // correct unit.
+    _prefs.addListener(_onPrefsChanged);
+  }
+
+  @override
+  void dispose() {
+    _prefs.removeListener(_onPrefsChanged);
+    super.dispose();
+  }
+
+  void _onPrefsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Build the two data sources for an exercise.
+  ///
+  /// The weight unit is read **inside** the fetchData closure so it is always
+  /// current at fetch time, not captured at construction time.
   List<AnalyticsDataSource> _sourcesFor(String exerciseName) {
     final db = DatabaseHelper.instance;
-    final weightUnit = UserPreferences().weightUnit;
+    // Read once for labels — these are used as Keys too so a unit change
+    // triggers new card instances (see _buildCardList).
+    final weightUnit = _prefs.weightUnit;
 
     return [
       AnalyticsDataSource(
@@ -32,20 +58,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         subtitle: 'Best set (reps × weight)',
         yAxisLabel: '$weightUnit·reps',
         fetchData: () async {
+          // Always read prefs fresh inside the closure.
+          final unit = UserPreferences().weightUnit;
           final rows = await db.getExerciseBestSetHistory(exerciseName);
           return rows.map((r) {
-            // weight is stored in grams as a REAL in the DB
-            final weightGrams = (r['weight'] as num).toInt();
+            final weightGrams = (r['weight'] as num).round();
             final reps = r['reps'] as int;
             final displayWeight =
-                WeightConverter.convertFromGrams(weightGrams, weightUnit);
+                WeightConverter.convertFromGrams(weightGrams, unit);
             final bestTotal = displayWeight * reps;
             return ChartDataPoint(
               date: DateTime.parse(r['date'] as String),
               value: bestTotal,
-              label:
-                  '${displayWeight.toStringAsFixed(1)} $weightUnit × $reps reps'
-                  ' = ${bestTotal.toStringAsFixed(1)} $weightUnit·reps',
+              label: '${displayWeight.toStringAsFixed(1)} $unit × $reps reps'
+                  ' = ${bestTotal.toStringAsFixed(1)} $unit·reps',
             );
           }).toList();
         },
@@ -55,15 +81,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         subtitle: 'Max weight lifted',
         yAxisLabel: weightUnit,
         fetchData: () async {
+          final unit = UserPreferences().weightUnit;
           final rows = await db.getExerciseMaxWeightHistory(exerciseName);
           return rows.map((r) {
-            final weightGrams = (r['max_weight'] as num).toInt();
+            final weightGrams = (r['max_weight'] as num).round();
             final displayWeight =
-                WeightConverter.convertFromGrams(weightGrams, weightUnit);
+                WeightConverter.convertFromGrams(weightGrams, unit);
             return ChartDataPoint(
               date: DateTime.parse(r['date'] as String),
               value: displayWeight,
-              label: '${displayWeight.toStringAsFixed(1)} $weightUnit',
+              label: '${displayWeight.toStringAsFixed(1)} $unit',
             );
           }).toList();
         },
@@ -130,21 +157,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildCardList(BuildContext context) {
-    // Each tracked exercise expands to two cards (best set + max weight).
-    final sources = _trackedExercises
-        .expand((name) => _sourcesFor(name))
-        .toList();
+    final weightUnit = _prefs.weightUnit;
+
+    // Each tracked exercise produces two cards (best set + max weight).
+    // The ValueKey includes the weight unit so Flutter replaces the card
+    // widget entirely when the unit changes, forcing AnalyticsPreviewCard
+    // to re-run initState and re-fetch with the new unit.
+    final entries = <Widget>[];
+    for (final name in _trackedExercises) {
+      for (final source in _sourcesFor(name)) {
+        entries.add(
+          AnalyticsPreviewCard(
+            key: ValueKey('${name}_${source.subtitle}_$weightUnit'),
+            source: source,
+          ),
+        );
+      }
+    }
 
     return Stack(
       children: [
         ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          itemCount: sources.length,
+          itemCount: entries.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) =>
-              AnalyticsPreviewCard(source: sources[index]),
+          itemBuilder: (_, index) => entries[index],
         ),
-        // Floating add button
         Positioned(
           bottom: 16,
           right: 16,
