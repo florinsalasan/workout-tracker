@@ -52,35 +52,69 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
             onTap: () => _openDetail(context),
             onLongPress: () => _showOptionsSheet(context),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              padding: const EdgeInsets.fromLTRB(16, 8, 4, 12),
               child: FutureBuilder<List<ChartDataPoint>>(
                 future: _future,
                 builder: (context, snapshot) {
-                  return Row(
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Left: title + subtitle + best value
-                      Expanded(
-                        flex: 2,
-                        child: _buildLabels(context, snapshot.data),
+                      // ── Top row: title + three-dot ──────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.source.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  widget.source.subtitle,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.more_vert,
+                              size: 20,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                            onPressed: () => _showOptionsSheet(context),
+                            tooltip: 'Options',
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      // Middle: sparkline
-                      Expanded(
-                        flex: 3,
-                        child: SizedBox(
-                          height: 60,
-                          child: _buildSparkline(context, snapshot),
-                        ),
-                      ),
-                      // Right: three-dot menu
-                      IconButton(
-                        icon: Icon(
-                          Icons.more_vert,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: () => _showOptionsSheet(context),
-                        tooltip: 'Options',
+                      const SizedBox(height: 8),
+                      // ── Bottom row: best value + sparkline ──────────────
+                      Row(
+                        children: [
+                          _buildBestValue(context, snapshot.data),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 56,
+                              child: _buildSparkline(context, snapshot),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   );
@@ -93,8 +127,7 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
     );
   }
 
-  Widget _buildLabels(BuildContext context, List<ChartDataPoint>? data) {
-    // Show the all-time best value, not just the latest session.
+  Widget _buildBestValue(BuildContext context, List<ChartDataPoint>? data) {
     final best = data != null && data.isNotEmpty
         ? data.reduce((a, b) => a.value >= b.value ? a : b)
         : null;
@@ -104,31 +137,16 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          widget.source.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          widget.source.subtitle,
+          best != null
+              ? '${best.value.toStringAsFixed(1)} ${widget.source.yAxisLabel}'
+              : '—',
           style: TextStyle(
-            fontSize: 11,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
         ),
-        if (best != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            'Best: ${best.value.toStringAsFixed(1)} ${widget.source.yAxisLabel}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
+        if (best != null)
           Text(
             DateFormat('MMM d, y').format(best.date),
             style: TextStyle(
@@ -136,7 +154,6 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-        ],
       ],
     );
   }
