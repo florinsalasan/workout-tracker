@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../models/analytics_models.dart';
-import '../providers/exercise_provider.dart';
+import '../providers/user_preferences_provider.dart';
 import '../services/db_helpers.dart';
+import '../services/mass_unit_conversions.dart';
 import '../widgets/add_exercise_dialog.dart';
 import '../widgets/analytics_preview_card.dart';
 import '../widgets/sliver_layout.dart';
@@ -23,22 +24,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   /// Build the two data sources (best set + max weight) for an exercise name.
   List<AnalyticsDataSource> _sourcesFor(String exerciseName) {
     final db = DatabaseHelper.instance;
+    final weightUnit = UserPreferences().weightUnit;
+
     return [
       AnalyticsDataSource(
         title: exerciseName,
         subtitle: 'Best set (reps × weight)',
-        yAxisLabel: 'kg·reps',
+        yAxisLabel: '$weightUnit·reps',
         fetchData: () async {
           final rows = await db.getExerciseBestSetHistory(exerciseName);
           return rows.map((r) {
-            final total = (r['best_total'] as num).toDouble();
+            // weight is stored in grams as a REAL in the DB
+            final weightGrams = (r['weight'] as num).toInt();
             final reps = r['reps'] as int;
-            final weight = (r['weight'] as num).toDouble();
+            final displayWeight =
+                WeightConverter.convertFromGrams(weightGrams, weightUnit);
+            final bestTotal = displayWeight * reps;
             return ChartDataPoint(
               date: DateTime.parse(r['date'] as String),
-              value: total,
-              label: '${weight.toStringAsFixed(1)} kg × $reps reps'
-                  ' = ${total.toStringAsFixed(1)} kg·reps',
+              value: bestTotal,
+              label:
+                  '${displayWeight.toStringAsFixed(1)} $weightUnit × $reps reps'
+                  ' = ${bestTotal.toStringAsFixed(1)} $weightUnit·reps',
             );
           }).toList();
         },
@@ -46,15 +53,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       AnalyticsDataSource(
         title: exerciseName,
         subtitle: 'Max weight lifted',
-        yAxisLabel: 'kg',
+        yAxisLabel: weightUnit,
         fetchData: () async {
           final rows = await db.getExerciseMaxWeightHistory(exerciseName);
           return rows.map((r) {
-            final weight = (r['max_weight'] as num).toDouble();
+            final weightGrams = (r['max_weight'] as num).toInt();
+            final displayWeight =
+                WeightConverter.convertFromGrams(weightGrams, weightUnit);
             return ChartDataPoint(
               date: DateTime.parse(r['date'] as String),
-              value: weight,
-              label: '${weight.toStringAsFixed(1)} kg',
+              value: displayWeight,
+              label: '${displayWeight.toStringAsFixed(1)} $weightUnit',
             );
           }).toList();
         },

@@ -580,16 +580,26 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getExerciseBestSetHistory(
       String exerciseName) async {
     final db = await database;
+    // Use a subquery to get the actual set row with the highest reps*weight
+    // per session, avoiding undefined behaviour from non-aggregated columns.
     return await db.rawQuery('''
       SELECT
-        cw.date                          AS date,
-        MAX(cs.reps * cs.weight)         AS best_total,
-        cs.reps                          AS reps,
-        cs.weight                        AS weight
+        cw.date     AS date,
+        cs.reps     AS reps,
+        cs.weight   AS weight
       FROM completed_sets cs
       JOIN completed_exercises ce ON cs.exercise_id = ce.id
       JOIN completed_workouts cw  ON ce.workout_id  = cw.id
       WHERE ce.name = ?
+        AND cs.rowid = (
+          SELECT cs2.rowid
+          FROM completed_sets cs2
+          JOIN completed_exercises ce2 ON cs2.exercise_id = ce2.id
+          WHERE ce2.workout_id = cw.id
+            AND ce2.name = ce.name
+          ORDER BY cs2.reps * cs2.weight DESC
+          LIMIT 1
+        )
       GROUP BY cw.id
       ORDER BY cw.date ASC
     ''', [exerciseName]);
