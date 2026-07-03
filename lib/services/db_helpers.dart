@@ -573,6 +573,16 @@ class DatabaseHelper {
         });
     }
 
+  /// Returns all body weight log entries ordered oldest → newest.
+  Future<List<Map<String, dynamic>>> getBodyWeightHistory() async {
+    final db = await database;
+    return await db.query(
+      'body_weight_log',
+      columns: ['date', 'weight_g'],
+      orderBy: 'date ASC',
+    );
+  }
+
   /// Returns one point per workout session for [exerciseName].
   /// The value is max(reps × weight) across all sets in that session —
   /// the "best set" by total load, which reflects progress even when

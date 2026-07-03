@@ -6,12 +6,20 @@ import '../models/analytics_models.dart';
 import 'analytics_detail_screen.dart';
 
 /// A tappable card showing a sparkline preview of the last [previewPointCount]
-/// data points for a given [AnalyticsDataSource].
+/// data points. Receives already-fetched [data] directly — no async work here.
 ///
-/// Long-press or the three-dot menu triggers [onRemove].
-class AnalyticsPreviewCard extends StatefulWidget {
+/// Long-press or the three-dot menu triggers [onRemove] or lets the user
+/// pick a [DisplayMode] for the highlighted value.
+class AnalyticsPreviewCard extends StatelessWidget {
   final AnalyticsDataSource source;
+
+  /// Already-resolved data points, ordered oldest → newest.
+  /// Pass null to show a loading indicator, empty list to show "No data yet".
+  final List<ChartDataPoint>? data;
+
+  final DisplayMode displayMode;
   final VoidCallback onRemove;
+  final ValueChanged<DisplayMode> onDisplayModeChanged;
 
   /// How many of the most-recent points to show in the sparkline.
   final int previewPointCount;
@@ -19,22 +27,12 @@ class AnalyticsPreviewCard extends StatefulWidget {
   const AnalyticsPreviewCard({
     super.key,
     required this.source,
+    required this.data,
+    required this.displayMode,
     required this.onRemove,
+    required this.onDisplayModeChanged,
     this.previewPointCount = 10,
   });
-
-  @override
-  State<AnalyticsPreviewCard> createState() => _AnalyticsPreviewCardState();
-}
-
-class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
-  late Future<List<ChartDataPoint>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = widget.source.fetchData();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,72 +51,66 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
             onLongPress: () => _showOptionsSheet(context),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 4, 12),
-              child: FutureBuilder<List<ChartDataPoint>>(
-                future: _future,
-                builder: (context, snapshot) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Top row: title + subtitle + three-dot ──────────────
+                  Row(
                     children: [
-                      // ── Top row: title + three-dot ──────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.source.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  widget.source.subtitle,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              source.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.more_vert,
-                              size: 20,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                            Text(
+                              source.subtitle,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            onPressed: () => _showOptionsSheet(context),
-                            tooltip: 'Options',
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      // ── Bottom row: best value + sparkline ──────────────
-                      Row(
-                        children: [
-                          _buildBestValue(context, snapshot.data),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 56,
-                              child: _buildSparkline(context, snapshot),
-                            ),
-                          ),
-                        ],
+                      IconButton(
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: 20,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        onPressed: () => _showOptionsSheet(context),
+                        tooltip: 'Options',
                       ),
                     ],
-                  );
-                },
+                  ),
+                  const SizedBox(height: 8),
+                  // ── Bottom row: best value + sparkline ─────────────────
+                  Row(
+                    children: [
+                      _buildBestValue(context),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: _buildSparkline(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -127,18 +119,24 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
     );
   }
 
-  Widget _buildBestValue(BuildContext context, List<ChartDataPoint>? data) {
-    final best = data != null && data.isNotEmpty
-        ? data.reduce((a, b) => a.value >= b.value ? a : b)
-        : null;
+  Widget _buildBestValue(BuildContext context) {
+    if (data == null) {
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    final point = _selectPoint(data!);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          best != null
-              ? '${best.value.toStringAsFixed(1)} ${widget.source.yAxisLabel}'
+          point != null
+              ? '${point.value.toStringAsFixed(1)} ${source.yAxisLabel}'
               : '—',
           style: TextStyle(
             fontSize: 13,
@@ -146,9 +144,9 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
             color: Theme.of(context).colorScheme.primary,
           ),
         ),
-        if (best != null)
+        if (point != null)
           Text(
-            DateFormat('MMM d, y').format(best.date),
+            DateFormat('MMM d, y').format(point.date),
             style: TextStyle(
               fontSize: 10,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -158,20 +156,23 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
     );
   }
 
-  Widget _buildSparkline(
-      BuildContext context, AsyncSnapshot<List<ChartDataPoint>> snapshot) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
-        child: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
+  /// Pick the highlighted point from [points] based on [displayMode].
+  ChartDataPoint? _selectPoint(List<ChartDataPoint> points) {
+    if (points.isEmpty) return null;
+    switch (displayMode) {
+      case DisplayMode.highest:
+        return points.reduce((a, b) => a.value >= b.value ? a : b);
+      case DisplayMode.lowest:
+        return points.reduce((a, b) => a.value <= b.value ? a : b);
+      case DisplayMode.mostRecent:
+        return points.last;
     }
+  }
 
-    final data = snapshot.data ?? [];
-    if (data.isEmpty) {
+  Widget _buildSparkline(BuildContext context) {
+    if (data == null) return const SizedBox.shrink();
+
+    if (data!.isEmpty) {
       return Center(
         child: Text(
           'No data yet',
@@ -183,13 +184,13 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
       );
     }
 
-    final points = data.length > widget.previewPointCount
-        ? data.sublist(data.length - widget.previewPointCount)
-        : data;
+    final points = data!.length > previewPointCount
+        ? data!.sublist(data!.length - previewPointCount)
+        : data!;
 
-    final spots = points.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.value);
-    }).toList();
+    final spots = points.asMap().entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value.value))
+        .toList();
 
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
@@ -224,7 +225,7 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
   void _openDetail(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AnalyticsDetailScreen(source: widget.source),
+        builder: (_) => AnalyticsDetailScreen(source: source),
       ),
     );
   }
@@ -239,6 +240,30 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── Display mode picker ──────────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Display value',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            ...DisplayMode.values.map((mode) => RadioListTile<DisplayMode>(
+                  title: Text(mode.label),
+                  value: mode,
+                  groupValue: displayMode,
+                  onChanged: (selected) {
+                    if (selected != null) {
+                      Navigator.pop(sheetContext);
+                      onDisplayModeChanged(selected);
+                    }
+                  },
+                )),
+            const Divider(),
+            // ── Remove ──────────────────────────────────────────────────
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
               title: const Text(
@@ -262,8 +287,7 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Remove chart'),
         content: Text(
-          'Remove "${widget.source.title} — ${widget.source.subtitle}" '
-          'from Analytics?',
+          'Remove "${source.title} — ${source.subtitle}" from Analytics?',
         ),
         actions: [
           TextButton(
@@ -274,7 +298,7 @@ class _AnalyticsPreviewCardState extends State<AnalyticsPreviewCard> {
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(dialogContext);
-              widget.onRemove();
+              onRemove();
             },
             child: const Text('Remove'),
           ),

@@ -15,6 +15,29 @@ class ChartDataPoint {
   });
 }
 
+/// Which single value is highlighted on the preview card.
+enum DisplayMode {
+  highest,
+  lowest,
+  mostRecent;
+
+  String get label {
+    switch (this) {
+      case DisplayMode.highest:
+        return 'Highest';
+      case DisplayMode.lowest:
+        return 'Lowest';
+      case DisplayMode.mostRecent:
+        return 'Most recent';
+    }
+  }
+
+  String get key => name; // used for serialization
+  static DisplayMode fromKey(String key) =>
+      DisplayMode.values.firstWhere((m) => m.name == key,
+          orElse: () => DisplayMode.highest);
+}
+
 /// Describes one analytics chart: its display strings, what to query,
 /// and how to label the y-axis.
 ///
