@@ -238,7 +238,7 @@ class DatabaseHelper {
         whereArgs: [exercise.id],
       );
       exercise.sets = setMaps.map((setMap) {
-        final weightInGrams = setMap['weight'] as int;
+        final weightInGrams = (setMap['weight'] as num).round();
         final convertedWeight =
             WeightConverter.convertFromGrams(weightInGrams, weightUnit);
         return CompletedSet(
@@ -563,6 +563,169 @@ class DatabaseHelper {
     );
 
     return results.map((map) => PersonalBest.fromMap(map)).toList();
+  }
+
+  /// Wipes all personal best rows for [exerciseName] and replays every
+  /// completed set for that exercise across all workouts to reconstruct them
+  /// from scratch. Call this after any edit that may have reduced or removed
+  /// sets for an exercise.
+  Future<void> rebuildPersonalBestsForExercise(String exerciseName) async {
+    final db = await database;
+
+    await db.transaction((txn) async {
+      // Resolve the base exercise id.
+      final baseResult = await txn.query(
+        'exercises',
+        columns: ['id'],
+        where: 'name = ?',
+        whereArgs: [exerciseName],
+        limit: 1,
+      );
+      if (baseResult.isEmpty) return;
+      final baseExerciseId = baseResult.first['id'] as int;
+
+      // Wipe all existing PBs for this exercise.
+      await txn.delete(
+        'personal_bests',
+        where: 'exercise_id = ?',
+        whereArgs: [baseExerciseId],
+      );
+
+      // Fetch every set ever logged for this exercise, oldest first.
+      final rows = await txn.rawQuery('''
+        SELECT cs.reps, cs.weight, cw.date
+        FROM completed_sets cs
+        JOIN completed_exercises ce ON cs.exercise_id = ce.id
+        JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+        WHERE ce.name = ?
+        ORDER BY cw.date ASC
+      ''', [exerciseName]);
+
+      // Replay each set through the same PB logic used at workout completion.
+      for (final row in rows) {
+        final reps = row['reps'] as int;
+        final weight = (row['weight'] as num).toDouble();
+        final date = row['date'] as String;
+
+        // rep_based: update any rep count from reps down to 1 that this beats.
+        for (int i = reps; i > 0; i--) {
+          final existing = await txn.query(
+            'personal_bests',
+            where: 'exercise_id = ? AND reps = ? AND type = ?',
+            whereArgs: [baseExerciseId, i, 'rep_based'],
+            limit: 1,
+          );
+          final existingWeight = existing.isNotEmpty
+              ? (existing.first['weight'] as num).toDouble()
+              : 0.0;
+
+          if (weight > existingWeight) {
+            await txn.insert(
+              'personal_bests',
+              {
+                'exercise_id': baseExerciseId,
+                'reps': i,
+                'weight': weight,
+                'date': date,
+                'type': 'rep_based',
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          } else {
+            break;
+          }
+        }
+
+        // overall_weight: update if this set's total beats the stored best.
+        final total = reps * weight;
+        final existingOverall = await txn.query(
+          'personal_bests',
+          where: 'exercise_id = ? AND type = ?',
+          whereArgs: [baseExerciseId, 'overall_weight'],
+          orderBy: 'total_weight DESC',
+          limit: 1,
+        );
+        final existingTotal = existingOverall.isNotEmpty
+            ? (existingOverall.first['total_weight'] as num).toDouble()
+            : 0.0;
+
+        if (total > existingTotal) {
+          await txn.insert(
+            'personal_bests',
+            {
+              'exercise_id': baseExerciseId,
+              'reps': reps,
+              'weight': weight,
+              'date': date,
+              'type': 'overall_weight',
+              'total_weight': total,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      }
+    });
+  }
+
+  /// Saves edits to an existing completed workout and rebuilds personal bests
+  /// for every exercise that was touched.
+  ///
+  /// [workout] must have a non-null [id].
+  /// [originalExerciseNames] is the list of exercise names before the edit,
+  /// used to ensure PBs are rebuilt for removed/swapped exercises too.
+  Future<void> updateCompletedWorkout(
+    CompletedWorkout workout,
+    List<String> originalExerciseNames,
+  ) async {
+    assert(workout.id != null, 'workout.id must not be null for an update');
+    final db = await database;
+
+    // Collect all exercise names touched by this edit for PB rebuild later.
+    final affectedNames = <String>{
+      ...originalExerciseNames,
+      ...workout.exercises.map((e) => e.name),
+    };
+
+    await db.transaction((txn) async {
+      // 1. Update the workout header (duration, name).
+      await txn.update(
+        'completed_workouts',
+        {
+          'duration_in_seconds': workout.durationInSeconds,
+          if (workout.name != null) 'name': workout.name,
+        },
+        where: 'id = ?',
+        whereArgs: [workout.id],
+      );
+
+      // 2. Delete all existing exercises for this workout (sets cascade).
+      await txn.delete(
+        'completed_exercises',
+        where: 'workout_id = ?',
+        whereArgs: [workout.id],
+      );
+
+      // 3. Re-insert exercises and sets from the edited workout.
+      for (final exercise in workout.exercises) {
+        final exerciseId = await txn.insert('completed_exercises', {
+          'workout_id': workout.id,
+          'name': exercise.name,
+        });
+        for (final set in exercise.sets) {
+          await txn.insert('completed_sets', {
+            'exercise_id': exerciseId,
+            'reps': set.reps,
+            'weight': set.weight,
+          });
+        }
+      }
+    });
+
+    // 4. Rebuild PBs for every affected exercise outside the transaction
+    //    so each rebuild runs its own nested transaction cleanly.
+    for (final name in affectedNames) {
+      await rebuildPersonalBestsForExercise(name);
+    }
   }
 
   Future<int> logBodyWeight(int weightInGrams) async {
