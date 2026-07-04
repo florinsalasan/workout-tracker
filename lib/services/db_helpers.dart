@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
@@ -10,6 +11,9 @@ class DatabaseHelper {
   static Database? _database;
 
   DatabaseHelper._init();
+
+  @visibleForTesting
+  DatabaseHelper.internal();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -137,18 +141,18 @@ class DatabaseHelper {
   }
 
   Future<int> insertExercise(Exercise exercise) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.insert('exercises', exercise.toMap());
   }
 
   Future<List<Exercise>> getAllExercises() async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query('exercises');
     return result.map((json) => Exercise.fromMap(json)).toList();
   }
 
   Future<int> updateExercise(Exercise exercise) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.update(
       'exercises',
       exercise.toMap(),
@@ -158,7 +162,7 @@ class DatabaseHelper {
   }
 
   Future<int> deleteExercise(int id) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.delete(
       'exercises',
       where: 'id = ?',
@@ -484,18 +488,37 @@ class DatabaseHelper {
           final totalWeight = (totalWeightSet['reps'] as int) *
               (totalWeightSet['weight'] as double);
 
-          await txn.insert(
+          final existingOverall = await txn.query(
             'personal_bests',
-            {
-              'exercise_id': baseExerciseId,
-              'reps': totalWeightSet['reps'],
-              'weight': totalWeightSet['weight'],
-              'date': DateTime.now().toIso8601String(),
-              'type': 'overall_weight',
-              'total_weight': totalWeight,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
+            where: 'exercise_id = ? AND type = ?',
+            whereArgs: [baseExerciseId, 'overall_weight'],
+            orderBy: 'total_weight DESC',
+            limit: 1,
           );
+          final existingTotal = existingOverall.isNotEmpty
+              ? (existingOverall.first['total_weight'] as num).toDouble()
+              : 0.0;
+
+          if (totalWeight > existingTotal) {
+            await txn.delete(
+              'personal_bests',
+              where: 'exercise_id = ? AND type = ?',
+              whereArgs: [baseExerciseId, 'overall_weight'],
+            );
+
+            await txn.insert(
+              'personal_bests',
+              {
+                'exercise_id': baseExerciseId,
+                'reps': totalWeightSet['reps'],
+                'weight': totalWeightSet['weight'],
+                'date': DateTime.now().toIso8601String(),
+                'type': 'overall_weight',
+                'total_weight': totalWeight,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
         }
       }
     });
@@ -650,6 +673,12 @@ class DatabaseHelper {
             : 0.0;
 
         if (total > existingTotal) {
+          await txn.delete(
+            'personal_bests',
+            where: 'exercise_id = ? AND type = ?',
+            whereArgs: [baseExerciseId, 'overall_weight'],
+          );
+
           await txn.insert(
             'personal_bests',
             {
@@ -729,7 +758,7 @@ class DatabaseHelper {
   }
 
   Future<int> logBodyWeight(int weightInGrams) async {
-        final db = await instance.database;
+        final db = await database;
         return await db.insert('body_weight_log', {
           'date': DateTime.now().toIso8601String(),
           'weight_g': weightInGrams,

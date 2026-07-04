@@ -123,7 +123,7 @@ Future<void> insertSet(
 // a real file-based one.
 class TestDatabaseHelper extends DatabaseHelper {
   final Database _db;
-  TestDatabaseHelper(this._db) : super._test();
+  TestDatabaseHelper(this._db) : super.internal();
 
   @override
   Future<Database> get database async => _db;
