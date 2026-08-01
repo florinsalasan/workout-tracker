@@ -141,7 +141,7 @@ class AnalyticsPreviewCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.primary,
+            color: Theme.of(context).colorScheme.secondary,
           ),
         ),
         if (point != null)
@@ -195,7 +195,7 @@ class AnalyticsPreviewCard extends StatelessWidget {
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final padding = (maxY - minY) == 0 ? 1.0 : (maxY - minY) * 0.15;
-    final color = Theme.of(context).colorScheme.primary;
+    final color = Theme.of(context).colorScheme.secondary;
 
     return LineChart(
       LineChartData(
