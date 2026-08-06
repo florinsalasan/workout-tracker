@@ -30,7 +30,7 @@ A workout tracking app with a long list of features that need to be implemented.
 - [ ] Add many many more exercises to the exercise list
 - [ ] Add fuzzy finding search to the exercise list for fun
 - [ ] Add calendar view for history page to quickly navigate to different workouts in the past, if multiple on the same day it should filter by the chosen date or scroll the list to that date
-- [ ] Rework history tab from including the date on each individual workout to having the workouts grouped by date
+~~- [ ] Rework history tab from including the date on each individual workout to having the workouts grouped by date~~ not really necessary imo, might come into play if/when calendar view is made
 - [x] Implement different themes, such as dark mode and oled dark mode (only light and dark, no oled at the moment, perhaps never)
 - [ ] Add ways to sort exercises / filter by tag, ie sorting by recently performed, alphabetical, filtering by body part or isolation vs compound lift etc
 - [ ] In exercises details, rework pb database to have a history of how pbs have improved over time
