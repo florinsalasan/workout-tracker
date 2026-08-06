@@ -194,7 +194,7 @@ class _AnalyticsDetailScreenState extends State<AnalyticsDetailScreen> {
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final yPad = (maxY - minY) == 0 ? 5.0 : (maxY - minY) * 0.2;
-    final color = Theme.of(context).colorScheme.primary;
+    final color = Theme.of(context).colorScheme.secondary;
 
     // X-axis: show first, middle, last date labels
     String xLabel(double v) {

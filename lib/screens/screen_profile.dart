@@ -18,6 +18,7 @@ class ProfileScreen extends StatelessWidget {
               child: ListView(
                 children: [
                   _buildSettingsGroup(
+                    context,
                     'Units',
                     [
                       _buildUnitSetting(
@@ -45,6 +46,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildSettingsGroup(
+                    context,
                     'Personal Information',
                     [
                       _buildHeightDisplay(context, userPreferences),
@@ -61,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsGroup(String title, List<Widget> children) {
+  Widget _buildSettingsGroup(BuildContext context, String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -69,10 +71,10 @@ class ProfileScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.blueAccent,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),

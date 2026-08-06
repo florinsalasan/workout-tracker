@@ -1,19 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/services/db_helpers.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
+import '../screens/workout_edit_screen.dart';
 import '../services/date_time_utils.dart';
 
-class WorkoutDetailsView extends StatelessWidget {
+class WorkoutDetailsView extends StatefulWidget {
   final CompletedWorkout workout;
 
   const WorkoutDetailsView({super.key, required this.workout});
+
+  @override
+  State<WorkoutDetailsView> createState() => _WorkoutDetailsViewState();
+}
+
+class _WorkoutDetailsViewState extends State<WorkoutDetailsView> {
+  late CompletedWorkout _workout;
+
+  @override
+  void initState() {
+    super.initState();
+    _workout = widget.workout;
+  }
+
+  Future<void> _openEdit() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => WorkoutEditScreen(workout: _workout),
+      ),
+    );
+    // If the edit was saved, reload the workout from DB so the view reflects
+    // the changes without needing to pop and re-open.
+    // Use getAllCompletedWorkouts (same path as the history list) so weights
+    // come back as raw grams — getCompletedWorkout pre-converts to display
+    // units which would cause a double-conversion in _buildSetItem.
+    if (saved == true && mounted) {
+      final all = await DatabaseHelper.instance.getAllCompletedWorkouts();
+      final updated = all.where((w) => w.id == _workout.id).firstOrNull;
+      if (updated != null && mounted) {
+        setState(() => _workout = updated);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Workout Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: 'Edit workout',
+            onPressed: _openEdit,
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -33,7 +75,7 @@ class WorkoutDetailsView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          formatDate(workout),
+          formatDate(_workout),
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -41,11 +83,10 @@ class WorkoutDetailsView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Duration: ${formatDuration(workout.durationInSeconds)}',
+          'Duration: ${formatDuration(_workout.durationInSeconds)}',
           style: TextStyle(
             fontSize: 18,
-            // Using the Material theme to automatically handle light/dark mode secondary text
-            color: Theme.of(context).colorScheme.onSurfaceVariant, 
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -60,10 +101,9 @@ class WorkoutDetailsView extends StatelessWidget {
           "Exercises",
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(
-          height: 16,
-        ),
-        ...workout.exercises.map((exercise) => _buildExerciseItem(context, exercise))
+        const SizedBox(height: 16),
+        ..._workout.exercises
+            .map((exercise) => _buildExerciseItem(context, exercise))
       ],
     );
   }

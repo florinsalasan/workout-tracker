@@ -32,7 +32,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _isReorderMode = false;
 
   late final UserPreferences _prefs;
-  late final WorkoutState _workoutState;
+  late WorkoutState _workoutState;
+  bool _isInit = false;
 
   @override
   void initState() {
@@ -44,8 +45,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _workoutState = Provider.of<WorkoutState>(context, listen: false);
-    _workoutState.addListener(_onTabChanged);
+    if (!_isInit) {
+      _workoutState = Provider.of<WorkoutState>(context, listen: false);
+      _workoutState.addListener(_onTabChanged);
+      _isInit = true;
+    }
     if (!_loaded) _loadTracked();
   }
 
