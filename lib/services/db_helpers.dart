@@ -151,14 +151,25 @@ class DatabaseHelper {
     return result.map((json) => Exercise.fromMap(json)).toList();
   }
 
-  Future<int> updateExercise(Exercise exercise) async {
+  Future<int> updateExercise(Exercise exercise, {String? oldName}) async {
     final db = await database;
-    return await db.update(
-      'exercises',
-      exercise.toMap(),
-      where: 'id = ?',
-      whereArgs: [exercise.id],
-    );
+    return await db.transaction((txn) async {
+      final res = await txn.update(
+        'exercises',
+        exercise.toMap(),
+        where: 'id = ?',
+        whereArgs: [exercise.id],
+      );
+      if (oldName != null && oldName != exercise.name) {
+        await txn.update(
+          'completed_exercises',
+          {'name': exercise.name},
+          where: 'name = ?',
+          whereArgs: [oldName],
+        );
+      }
+      return res;
+    });
   }
 
   Future<int> deleteExercise(int id) async {

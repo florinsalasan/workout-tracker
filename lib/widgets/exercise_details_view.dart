@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
+import '../providers/exercise_provider.dart';
 import '../services/db_helpers.dart';
 import 'package:intl/intl.dart';
 
@@ -14,6 +16,7 @@ class ExerciseDetailsView extends StatefulWidget {
 }
 
 class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
+  late String _currentName;
   List<Map<String, dynamic>> exerciseHistory = [];
   Map<String, dynamic> personalBests = {};
   List<PersonalBest> records = [];
@@ -23,6 +26,7 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
   @override
   void initState() {
     super.initState();
+    _currentName = widget.exercise.name;
     _loadExerciseData();
   }
 
@@ -48,6 +52,74 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
     });
   }
 
+  void _showRenameDialog() {
+    final controller = TextEditingController(text: _currentName);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Exercise Name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            hintText: 'Exercise name',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) {
+            final newName = value.trim();
+            if (newName.isNotEmpty && newName != _currentName) {
+              Navigator.of(dialogContext).pop();
+              _renameExercise(newName);
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty && newName != _currentName) {
+                Navigator.of(dialogContext).pop();
+                _renameExercise(newName);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _renameExercise(String newName) async {
+    final oldName = _currentName;
+    final updated = Exercise(
+      id: widget.exercise.id,
+      name: newName,
+      isCustom: widget.exercise.isCustom,
+    );
+
+    final provider = Provider.of<ExerciseProvider>(context, listen: false);
+    await provider.updateExercise(updated, oldName: oldName);
+
+    setState(() {
+      _currentName = newName;
+    });
+
+    await _loadExerciseData();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Renamed to "$newName"'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -59,7 +131,14 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.exercise.name),
+        title: Text(_currentName),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit name',
+            onPressed: _showRenameDialog,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(

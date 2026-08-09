@@ -21,8 +21,8 @@ class ExerciseProvider with ChangeNotifier {
     await loadExercises();
   }
 
-  Future<void> updateExercise(Exercise exercise) async {
-    await _dbHelper.updateExercise(exercise);
+  Future<void> updateExercise(Exercise exercise, {String? oldName}) async {
+    await _dbHelper.updateExercise(exercise, oldName: oldName);
     await loadExercises();
   }
 
