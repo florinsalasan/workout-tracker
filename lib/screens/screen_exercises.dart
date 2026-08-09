@@ -91,12 +91,14 @@ class ExercisesScreenState extends State<ExercisesScreen> {
     }).toList();
   }
 
-  void _navigateToExerciseDetails(Exercise exercise) {
-    Navigator.of(context).push(
+  void _navigateToExerciseDetails(Exercise exercise) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ExerciseDetailsView(exercise: exercise),
       ),
     );
+    // Refresh tags in case any were created/modified in the detail view
+    await _loadTags();
   }
 
   void _showDeleteConfirmation(BuildContext context, Exercise exercise) {
