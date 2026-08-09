@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:workout_tracker/models/workout_model.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
@@ -16,6 +17,9 @@ Future<Database> openTestDb() async {
     options: OpenDatabaseOptions(
       version: 1,
       onCreate: _createSchema,
+      onOpen: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON;');
+      },
     ),
   );
   return db;
@@ -36,6 +40,15 @@ Future<void> _createSchema(Database db, int version) async {
       date TEXT NOT NULL,
       duration_in_seconds INTEGER NOT NULL,
       name TEXT
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE workout_templates(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workout_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      FOREIGN KEY (workout_id) REFERENCES completed_workouts (id) ON DELETE CASCADE
     )
   ''');
 
@@ -81,6 +94,23 @@ Future<void> _createSchema(Database db, int version) async {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       weight_g INTEGER NOT NULL
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE exercise_tags(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE exercise_tag_relations(
+      exercise_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      PRIMARY KEY (exercise_id, tag_id),
+      FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES exercise_tags (id) ON DELETE CASCADE
     )
   ''');
 }
@@ -139,6 +169,8 @@ void main() {
     late TestDatabaseHelper helper;
 
     setUp(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
       db = await openTestDb();
       helper = TestDatabaseHelper(db);
     });
@@ -442,6 +474,294 @@ void main() {
         expect(rows.length, 2);
         expect(DateTime.parse(rows[0]['date'] as String)
             .isBefore(DateTime.parse(rows[1]['date'] as String)), isTrue);
+      });
+    });
+
+    // ── Tag operations ──────────────────────────────────────────────────
+
+    group('tag operations', () {
+      test('insertTag and getAllTags round-trip', () async {
+        await helper.insertTag('Chest');
+        await helper.insertTag('Compound');
+
+        final tags = await helper.getAllTags();
+        expect(tags.length, 2);
+        expect(tags.map((t) => t['name']), containsAll(['Chest', 'Compound']));
+        // Each tag should have an id
+        expect(tags.every((t) => t['id'] != null), isTrue);
+      });
+
+      test('deleteTag removes the tag', () async {
+        await helper.insertTag('Legs');
+        final before = await helper.getAllTags();
+        expect(before.length, 1);
+
+        await helper.deleteTag(before.first['id'] as int);
+        final after = await helper.getAllTags();
+        expect(after.length, 0);
+      });
+
+      test('addTagToExercise and getExerciseTags', () async {
+        final exId = await insertExercise(db, 'Bench Press');
+        await helper.insertTag('Chest');
+        await helper.insertTag('Compound');
+        final tags = await helper.getAllTags();
+        final chestId = tags.firstWhere((t) => t['name'] == 'Chest')['id'] as int;
+        final compoundId = tags.firstWhere((t) => t['name'] == 'Compound')['id'] as int;
+
+        await helper.addTagToExercise(exId, chestId);
+        await helper.addTagToExercise(exId, compoundId);
+
+        final exerciseTags = await helper.getExerciseTags(exId);
+        expect(exerciseTags, containsAll(['Chest', 'Compound']));
+      });
+
+      test('removeTagFromExercise removes the association', () async {
+        final exId = await insertExercise(db, 'Squat');
+        await helper.insertTag('Legs');
+        final tags = await helper.getAllTags();
+        final legsId = tags.first['id'] as int;
+
+        await helper.addTagToExercise(exId, legsId);
+        expect(await helper.getExerciseTags(exId), contains('Legs'));
+
+        await helper.removeTagFromExercise(exId, legsId);
+        expect(await helper.getExerciseTags(exId), isEmpty);
+      });
+
+      test('getExerciseIdsByTag returns correct exercise IDs', () async {
+        final benchId = await insertExercise(db, 'Bench Press');
+        final squatId = await insertExercise(db, 'Squat');
+        final curlId = await insertExercise(db, 'Bicep Curl');
+
+        await helper.insertTag('Compound');
+        final tags = await helper.getAllTags();
+        final compoundId = tags.first['id'] as int;
+
+        await helper.addTagToExercise(benchId, compoundId);
+        await helper.addTagToExercise(squatId, compoundId);
+        // curlId intentionally not tagged
+
+        final ids = await helper.getExerciseIdsByTag(compoundId);
+        expect(ids, containsAll([benchId, squatId]));
+        expect(ids, isNot(contains(curlId)));
+      });
+
+      test('getExerciseIdsByTag returns empty set for unused tag', () async {
+        await helper.insertTag('Unused');
+        final tags = await helper.getAllTags();
+        final unusedId = tags.first['id'] as int;
+
+        final ids = await helper.getExerciseIdsByTag(unusedId);
+        expect(ids, isEmpty);
+      });
+
+      test('deleting a tag cascades to remove exercise associations', () async {
+        final exId = await insertExercise(db, 'Deadlift');
+        await helper.insertTag('Back');
+        final tags = await helper.getAllTags();
+        final backId = tags.first['id'] as int;
+
+        await helper.addTagToExercise(exId, backId);
+        expect(await helper.getExerciseTags(exId), contains('Back'));
+
+        await helper.deleteTag(backId);
+        expect(await helper.getExerciseTags(exId), isEmpty);
+      });
+    });
+
+    // ── insertCompletedWorkout & deleteCompletedWorkout ─────────────────
+
+    group('insertCompletedWorkout and deleteCompletedWorkout', () {
+      test('insertCompletedWorkout saves full workout hierarchy into database', () async {
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-08-01T10:00:00.000'),
+          durationInSeconds: 1800,
+          name: 'Morning Push',
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Bench Press',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 10, weight: 60.0),
+                CompletedSet(exerciseId: null, reps: 8, weight: 70.0),
+              ],
+            ),
+          ],
+        );
+
+        final workoutId = await helper.insertCompletedWorkout(workout);
+        expect(workoutId, greaterThan(0));
+
+        final savedWorkout = await helper.getCompletedWorkout(workoutId);
+        expect(savedWorkout, isNotNull);
+        expect(savedWorkout!.name, 'Morning Push');
+        expect(savedWorkout.durationInSeconds, 1800);
+        expect(savedWorkout.exercises.length, 1);
+        expect(savedWorkout.exercises.first.name, 'Bench Press');
+        expect(savedWorkout.exercises.first.sets.length, 2);
+      });
+
+      test('insertCompletedWorkout creates a template entry when templateName is provided', () async {
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-08-01T10:00:00.000'),
+          durationInSeconds: 2400,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Squat',
+              sets: [CompletedSet(exerciseId: null, reps: 5, weight: 100.0)],
+            ),
+          ],
+        );
+
+        final workoutId = await helper.insertCompletedWorkout(
+          workout,
+          templateName: 'Leg Day Alpha',
+        );
+
+        final templates = await helper.getWorkoutTemplates();
+        expect(templates.length, 1);
+        expect(templates.first['template_name'], 'Leg Day Alpha');
+        expect(templates.first['id'], workoutId);
+      });
+
+      test('deleteCompletedWorkout removes workout from database', () async {
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-08-01T10:00:00.000'),
+          durationInSeconds: 1200,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Pull Up',
+              sets: [CompletedSet(exerciseId: null, reps: 10, weight: 0.0)],
+            ),
+          ],
+        );
+
+        final workoutId = await helper.insertCompletedWorkout(workout);
+        final count = await helper.deleteCompletedWorkout(workoutId);
+        expect(count, 1);
+
+        final fetched = await helper.getCompletedWorkout(workoutId);
+        expect(fetched, isNull);
+      });
+    });
+
+    // ── checkAndUpdatePersonalBests ──────────────────────────────────────
+
+    group('checkAndUpdatePersonalBests', () {
+      test('updates rep-based and overall-weight PBs when workout completes', () async {
+        final baseExId = await insertExercise(db, 'Bench Press');
+
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-08-01T10:00:00.000'),
+          durationInSeconds: 3600,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Bench Press',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 5, weight: 100.0),
+                CompletedSet(exerciseId: null, reps: 3, weight: 110.0),
+              ],
+            ),
+          ],
+        );
+
+        final workoutId = await helper.insertCompletedWorkout(workout);
+        await helper.checkAndUpdatePersonalBests(workoutId);
+
+        final pbs = await helper.getPersonalBests(baseExId);
+        expect(pbs, isNotEmpty);
+
+        final rep5PB = pbs.firstWhere((pb) => pb.reps == 5 && pb.type == 'rep_based');
+        expect(rep5PB.weight, 100.0);
+
+        final rep3PB = pbs.firstWhere((pb) => pb.reps == 3 && pb.type == 'rep_based');
+        expect(rep3PB.weight, 110.0);
+
+        final overallPB = pbs.firstWhere((pb) => pb.type == 'overall_weight');
+        expect(overallPB.totalWeight, 500.0);
+        expect(overallPB.reps, 5);
+        expect(overallPB.weight, 100.0);
+      });
+    });
+
+    // ── Template operations ──────────────────────────────────────────────
+
+    group('template operations', () {
+      test('renameWorkoutTemplate updates template name', () async {
+        final workout = CompletedWorkout(
+          date: DateTime.now(),
+          durationInSeconds: 1000,
+          exercises: [],
+        );
+        await helper.insertCompletedWorkout(workout, templateName: 'Old Name');
+        final templatesBefore = await helper.getWorkoutTemplates();
+        final templateId = templatesBefore.first['template_id'] as int;
+
+        await helper.renameWorkoutTemplate(templateId, 'New Name');
+        final templatesAfter = await helper.getWorkoutTemplates();
+        expect(templatesAfter.first['template_name'], 'New Name');
+      });
+
+      test('deleteWorkoutTemplate deletes only template association', () async {
+        final workout = CompletedWorkout(
+          date: DateTime.now(),
+          durationInSeconds: 1000,
+          exercises: [],
+        );
+        final workoutId = await helper.insertCompletedWorkout(workout, templateName: 'To Delete');
+        final templatesBefore = await helper.getWorkoutTemplates();
+        final templateId = templatesBefore.first['template_id'] as int;
+
+        await helper.deleteWorkoutTemplate(templateId);
+        final templatesAfter = await helper.getWorkoutTemplates();
+        expect(templatesAfter, isEmpty);
+
+        final savedWorkout = await helper.getCompletedWorkout(workoutId);
+        expect(savedWorkout, isNotNull);
+      });
+    });
+
+    // ── getLastCompletedSets ─────────────────────────────────────────────
+
+    group('getLastCompletedSets', () {
+      test('returns sets from the most recent workout containing the exercise', () async {
+        final workout1 = CompletedWorkout(
+          date: DateTime.parse('2026-08-01T00:00:00.000'),
+          durationInSeconds: 1000,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Incline Press',
+              sets: [CompletedSet(exerciseId: null, reps: 10, weight: 50.0)],
+            ),
+          ],
+        );
+        await helper.insertCompletedWorkout(workout1);
+
+        final workout2 = CompletedWorkout(
+          date: DateTime.parse('2026-08-02T00:00:00.000'),
+          durationInSeconds: 1000,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Incline Press',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 8, weight: 60.0),
+                CompletedSet(exerciseId: null, reps: 8, weight: 65.0),
+              ],
+            ),
+          ],
+        );
+        await helper.insertCompletedWorkout(workout2);
+
+        final lastSets = await helper.getLastCompletedSets('Incline Press');
+        expect(lastSets.length, 2);
+        expect(lastSets[0].weight, 60.0);
+        expect(lastSets[1].weight, 65.0);
       });
     });
   });

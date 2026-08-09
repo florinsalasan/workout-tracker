@@ -371,12 +371,30 @@ class DatabaseHelper {
     await db.insert('exercise_tags', {'name': tagName});
   }
 
+  Future<void> deleteTag(int tagId) async {
+    final db = await database;
+    await db.delete(
+      'exercise_tags',
+      where: 'id = ?',
+      whereArgs: [tagId],
+    );
+  }
+
   Future<void> addTagToExercise(int exerciseId, int tagId) async {
     final db = await database;
     await db.insert('exercise_tag_relations', {
       'exercise_id': exerciseId,
       'tag_id': tagId,
     });
+  }
+
+  Future<void> removeTagFromExercise(int exerciseId, int tagId) async {
+    final db = await database;
+    await db.delete(
+      'exercise_tag_relations',
+      where: 'exercise_id = ? AND tag_id = ?',
+      whereArgs: [exerciseId, tagId],
+    );
   }
 
   Future<List<String>> getExerciseTags(int exerciseId) async {
@@ -390,14 +408,25 @@ class DatabaseHelper {
     return results.map((map) => map['name'] as String).toList();
   }
 
-  Future<List<String>> getAllTags() async {
+  Future<List<Map<String, dynamic>>> getAllTags() async {
     final db = await database;
     final results = await db.query(
       'exercise_tags',
-      columns: ['name'],
+      columns: ['id', 'name'],
       distinct: true,
     );
-    return results.map((map) => map['name'] as String).toList();
+    return results;
+  }
+
+  Future<Set<int>> getExerciseIdsByTag(int tagId) async {
+    final db = await database;
+    final results = await db.query(
+      'exercise_tag_relations',
+      columns: ['exercise_id'],
+      where: 'tag_id = ?',
+      whereArgs: [tagId],
+    );
+    return results.map((r) => r['exercise_id'] as int).toSet();
   }
 
   Future<void> checkAndUpdatePersonalBests(int workoutId) async {

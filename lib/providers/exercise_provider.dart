@@ -59,7 +59,21 @@ class ExerciseProvider with ChangeNotifier {
     return await _dbHelper.getExerciseTags(exerciseId);
   }
 
-  Future<List<String>> getAllTags() async {
+  Future<List<Map<String, dynamic>>> getAllTags() async {
     return await _dbHelper.getAllTags();
+  }
+
+  Future<void> removeTagFromExercise(int exerciseId, int tagId) async {
+    await _dbHelper.removeTagFromExercise(exerciseId, tagId);
+    notifyListeners();
+  }
+
+  Future<void> deleteTag(int tagId) async {
+    await _dbHelper.deleteTag(tagId);
+    notifyListeners();
+  }
+
+  Future<Set<int>> getExerciseIdsByTag(int tagId) async {
+    return await _dbHelper.getExerciseIdsByTag(tagId);
   }
 }
