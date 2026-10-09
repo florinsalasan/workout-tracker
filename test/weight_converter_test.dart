@@ -51,8 +51,6 @@ void main() {
     // same value.
 
     group('round-trip', () {
-      const tolerance = 0.5; // grams — acceptable rounding error
-
       test('kg round-trip: display → grams → display', () {
         for (final weight in [1.0, 10.0, 50.0, 110.0, 200.0]) {
           final grams = WeightConverter.convertToGrams(weight, 'kg');

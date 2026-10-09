@@ -5,6 +5,7 @@ import '../widgets/sliver_layout.dart';
 import '../widgets/exercise_details_view.dart';
 import '../services/db_helpers.dart';
 import '../utils/fuzzy_match.dart';
+import '../widgets/alphabet_indexer.dart';
 
 class ExercisesScreen extends StatefulWidget {
   const ExercisesScreen({super.key});
@@ -27,6 +28,9 @@ class ExercisesScreenState extends State<ExercisesScreen> {
   /// null = no tag filter active (show all).
   Set<int>? _tagFilteredIds;
 
+  final ScrollController _scrollController = ScrollController();
+  String? _activeLetterBubble;
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +46,50 @@ class ExercisesScreenState extends State<ExercisesScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  IconData _getSortIcon(ExerciseSortOrder order) {
+    switch (order) {
+      case ExerciseSortOrder.alphabetical:
+        return Icons.sort_by_alpha;
+      case ExerciseSortOrder.recentlyPerformed:
+        return Icons.history;
+      case ExerciseSortOrder.mostFrequent:
+        return Icons.bar_chart;
+    }
+  }
+
+  String _getSortLabel(ExerciseSortOrder order) {
+    switch (order) {
+      case ExerciseSortOrder.alphabetical:
+        return 'Alphabetical (A–Z)';
+      case ExerciseSortOrder.recentlyPerformed:
+        return 'Recently Performed';
+      case ExerciseSortOrder.mostFrequent:
+        return 'Most Frequent';
+    }
+  }
+
+  void _scrollToLetter(String letter, List<Exercise> list) {
+    if (!_scrollController.hasClients) return;
+    int targetIndex = list.indexWhere(
+        (e) => e.name.trimLeft().toUpperCase().startsWith(letter));
+    if (targetIndex == -1) {
+      targetIndex = list.indexWhere((e) {
+        final initial = e.name.trimLeft().toUpperCase();
+        return initial.isNotEmpty && initial.compareTo(letter) > 0;
+      });
+    }
+    if (targetIndex != -1) {
+      const double itemHeight = 64.0;
+      final offset = (targetIndex * itemHeight).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.jumpTo(offset);
+    }
   }
 
   Future<void> _loadTags() async {
@@ -101,34 +148,6 @@ class ExercisesScreenState extends State<ExercisesScreen> {
     await _loadTags();
   }
 
-  void _showDeleteConfirmation(BuildContext context, Exercise exercise) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Delete Exercise'),
-        content: Text(
-            'Are you sure you want to delete ${exercise.name}? This will not remove past workout data, but it will hide the exercise.'),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            onPressed: () {
-              Provider.of<ExerciseProvider>(context, listen: false)
-                  .deleteExercise(exercise.id!);
-              Navigator.of(context).pop();
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Tag management ──────────────────────────────────────────────────────────
 
   void _showManageTagsSheet() {
@@ -140,6 +159,7 @@ class ExercisesScreenState extends State<ExercisesScreen> {
       ),
       builder: (sheetContext) => _ManageTagsSheet(
         allTags: _allTags,
+        selectedTagIds: _selectedTagIds,
         onTagCreated: (name) async {
           final provider =
               Provider.of<ExerciseProvider>(context, listen: false);
@@ -158,6 +178,9 @@ class ExercisesScreenState extends State<ExercisesScreen> {
           } else {
             await _onTagToggled(_selectedTagIds.first); // retrigger
           }
+        },
+        onTagTapped: (tagId) {
+          _onTagToggled(tagId);
         },
       ),
     );
@@ -192,27 +215,74 @@ class ExercisesScreenState extends State<ExercisesScreen> {
 
           return Column(
             children: [
-              // ── Search bar ──────────────────────────────────────────────
+              // ── Search bar & Sort selector ──────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search exercises...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => _searchController.clear(),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search exercises...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => _searchController.clear(),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          isDense: true,
+                        ),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    isDense: true,
-                  ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<ExerciseSortOrder>(
+                      tooltip: 'Sort exercises',
+                      icon: Icon(_getSortIcon(exerciseProvider.sortOrder)),
+                      initialValue: exerciseProvider.sortOrder,
+                      onSelected: (order) {
+                        exerciseProvider.setSortOrder(order);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: ExerciseSortOrder.alphabetical,
+                          child: Row(
+                            children: [
+                              Icon(Icons.sort_by_alpha, size: 20),
+                              SizedBox(width: 8),
+                              Text('Alphabetical (A–Z)'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: ExerciseSortOrder.recentlyPerformed,
+                          child: Row(
+                            children: [
+                              Icon(Icons.history, size: 20),
+                              SizedBox(width: 8),
+                              Text('Recently Performed'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: ExerciseSortOrder.mostFrequent,
+                          child: Row(
+                            children: [
+                              Icon(Icons.bar_chart, size: 20),
+                              SizedBox(width: 8),
+                              Text('Most Frequent'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               // ── Tag filter chips ────────────────────────────────────────
@@ -258,22 +328,31 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                   ],
                 ),
               ),
-              // ── Results count ───────────────────────────────────────────
-              if (_searchQuery.isNotEmpty || _selectedTagIds.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${filtered.length} exercise${filtered.length == 1 ? '' : 's'} found',
+              // ── Results count & Sort mode indicator ─────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${filtered.length} exercise${filtered.length == 1 ? '' : 's'}${_searchQuery.isNotEmpty || _selectedTagIds.isNotEmpty ? ' found' : ''}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
+                    Text(
+                      _getSortLabel(exerciseProvider.sortOrder),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
                 ),
-              // ── Exercise list ───────────────────────────────────────────
+              ),
+              // ── Exercise list with Alphabet Indexer ─────────────────────
               Expanded(
                 child: filtered.isEmpty
                     ? Center(
@@ -311,33 +390,107 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 4, bottom: 16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final exercise = filtered[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 4.0),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              side: BorderSide(
-                                  color: Theme.of(context).dividerColor),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                exercise.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w500),
+                    : Builder(
+                        builder: (context) {
+                          final isAlphabetical = exerciseProvider.sortOrder ==
+                              ExerciseSortOrder.alphabetical;
+                          final showAlphabetIndexer =
+                              isAlphabetical && filtered.isNotEmpty;
+                          final activeLetters = filtered
+                              .map((e) => e.name.trimLeft().isNotEmpty
+                                  ? e.name.trimLeft()[0].toUpperCase()
+                                  : '')
+                              .where((c) =>
+                                  c.isNotEmpty && RegExp(r'[A-Z]').hasMatch(c))
+                              .toSet();
+
+                          return Stack(
+                            children: [
+                              ListView.builder(
+                                controller: _scrollController,
+                                padding: EdgeInsets.only(
+                                  top: 4,
+                                  bottom: 16,
+                                  right: showAlphabetIndexer ? 28.0 : 0.0,
+                                ),
+                                itemCount: filtered.length,
+                                itemBuilder: (context, index) {
+                                  final exercise = filtered[index];
+                                  return Card(
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 16.0, vertical: 4.0),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      side: BorderSide(
+                                          color: Theme.of(context).dividerColor),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ListTile(
+                                      title: Text(
+                                        exercise.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                      trailing: const Icon(Icons.chevron_right,
+                                          color: Colors.grey),
+                                      onTap: () =>
+                                          _navigateToExerciseDetails(exercise),
+                                      onLongPress: () =>
+                                          _showTagExerciseSheet(exercise),
+                                    ),
+                                  );
+                                },
                               ),
-                              trailing: const Icon(Icons.chevron_right,
-                                  color: Colors.grey),
-                              onTap: () =>
-                                  _navigateToExerciseDetails(exercise),
-                              onLongPress: () =>
-                                  _showTagExerciseSheet(exercise),
-                            ),
+                              if (showAlphabetIndexer)
+                                Positioned(
+                                  top: 4,
+                                  bottom: 16,
+                                  right: 2,
+                                  child: AlphabetIndexer(
+                                    activeLetters: activeLetters,
+                                    activeLetter: _activeLetterBubble,
+                                    onLetterSelected: (letter) {
+                                      setState(() => _activeLetterBubble = letter);
+                                      _scrollToLetter(letter, filtered);
+                                    },
+                                    onDragEnd: () {
+                                      setState(() => _activeLetterBubble = null);
+                                    },
+                                  ),
+                                ),
+                              if (_activeLetterBubble != null)
+                                Center(
+                                  child: Container(
+                                    width: 72,
+                                    height: 72,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer
+                                          .withOpacity(0.95),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _activeLetterBubble!,
+                                      style: TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimaryContainer,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           );
                         },
                       ),
@@ -354,13 +507,17 @@ class ExercisesScreenState extends State<ExercisesScreen> {
 
 class _ManageTagsSheet extends StatefulWidget {
   final List<Map<String, dynamic>> allTags;
+  final Set<int> selectedTagIds;
   final Future<void> Function(String tagName) onTagCreated;
   final Future<void> Function(int tagId) onTagDeleted;
+  final void Function(int tagId) onTagTapped;
 
   const _ManageTagsSheet({
     required this.allTags,
+    required this.selectedTagIds,
     required this.onTagCreated,
     required this.onTagDeleted,
+    required this.onTagTapped,
   });
 
   @override
@@ -528,9 +685,22 @@ class _ManageTagsSheetState extends State<_ManageTagsSheet> {
                     final tag = filtered[index];
                     final tagId = tag['id'] as int;
                     final tagName = tag['name'] as String;
+                    final isActive = widget.selectedTagIds.contains(tagId);
                     return ListTile(
                       dense: true,
                       title: Text(tagName),
+                      leading: Icon(
+                        isActive
+                            ? Icons.filter_alt
+                            : Icons.filter_alt_outlined,
+                        size: 20,
+                        color: isActive
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                      ),
+                      onTap: () => widget.onTagTapped(tagId),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline,
                             color: Colors.red, size: 20),

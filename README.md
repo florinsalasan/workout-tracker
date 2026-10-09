@@ -25,18 +25,19 @@ A workout tracking app with a long list of features that need to be implemented.
 - [x] Showcase previous weight x reps for each relevant set inside the overlay to give users an idea of how to progress
 - [x] Implement settings page to choose units of measure, and many more down the line (default to lbs since I'm in NA)
 - [x] Implement some basic analytics features, charts showcasing various metrics for different exercises
-- [ ] Implement edit functionality for history of workouts
-- [ ] Implement edit functionality for workout templates (this will be a pain since now it will require a copy of completed exercises for the workouts that were templated)
-- [ ] Add many many more exercises to the exercise list
-- [ ] Add fuzzy finding search to the exercise list for fun
+- [x] Implement edit functionality for history of workouts
+- [ ] Implement edit functionality for workout templates (decoupling templates into dedicated tables)
+- [x] Add many many more exercises to the exercise list (110+ exercises with muscle and equipment tags in assets/exercises.json)
+- [x] Add fuzzy finding search to the exercise list for fun
 - [ ] Add calendar view for history page to quickly navigate to different workouts in the past, if multiple on the same day it should filter by the chosen date or scroll the list to that date
 - [x] ~~Rework history tab from including the date on each individual workout to having the workouts grouped by date~~ not really necessary imo, might come into play if/when calendar view is made
 - [x] Implement different themes, such as dark mode and oled dark mode (only light and dark, no oled at the moment, perhaps never)
-- [ ] Add ways to sort exercises / filter by tag, ie sorting by recently performed, alphabetical, filtering by body part or isolation vs compound lift etc
+- [x] Add ways to sort exercises / filter by tag (Alphabetical with vertical alphabet-indexer jump bar, Recently Performed, Most Frequent, and tag filter sheets)
 - [ ] In exercises details, rework pb database to have a history of how pbs have improved over time
 - [x] Add a place for users to mark down their height and weight, track body weight maybe in another chart for analytics, maybe match it to scans if they are ever implemented
+- [ ] Implement two-way sync with Apple HealthKit & Google Health Connect (workouts, weight, height)
 
 ### Stretch Goals:
 
-- [ ] Body Scan from video of a person spinning in place, as far as I can tell it is technically possible but could be very complex to implement single camera photogrammetry (either in app recording, or choosing a file to scan)
-- [ ] Implement ability to import csvs for a workout history from other apps as a migration
+- [ ] Body Scan from video of a person spinning in place to generate a 3D avatar, measure circumferences (waist, hips, etc.), and estimate body fat percentage via tissue density model
+- [ ] Implement ability to import csvs for a workout history from other apps as a migration (Strong & Hevy)

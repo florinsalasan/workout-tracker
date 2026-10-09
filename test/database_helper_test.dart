@@ -764,5 +764,58 @@ void main() {
         expect(lastSets[1].weight, 65.0);
       });
     });
+
+
+
+    // ── getExerciseHistory & Personal Bests ────────────────────────────
+    group('getExerciseHistory & Records', () {
+      test('retrieves detailed history, PBs, and records for an exercise', () async {
+        final exId = await helper.insertExercise(Exercise(name: 'Bicep Curl', isCustom: false));
+
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-08-05T00:00:00.000'),
+          durationInSeconds: 1500,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Bicep Curl',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 10, weight: 15000.0),
+                CompletedSet(exerciseId: null, reps: 8, weight: 17500.0),
+              ],
+            ),
+          ],
+        );
+
+        final wId = await helper.insertCompletedWorkout(workout);
+        await helper.checkAndUpdatePersonalBests(wId);
+
+        final history = await helper.getExerciseHistory(exId);
+        expect(history.isNotEmpty, isTrue);
+        expect(history.length, 2);
+
+        final pbs = await helper.getExercisePersonalBests(exId);
+        expect(pbs['heaviest_weight'], isNotNull);
+        expect(pbs['heaviest_weight']['weight'], 17500.0);
+
+        final records = await helper.getExerciseRecords(exId);
+        expect(records.isNotEmpty, isTrue);
+        expect(records.any((r) => r.reps == 8 && r.weight == 17500.0), isTrue);
+      });
+    });
+
+    // ── logBodyWeight & getBodyWeightHistory ────────────────────────────
+    group('logBodyWeight & getBodyWeightHistory', () {
+      test('logs body weight entries and retrieves history ordered by date', () async {
+        await helper.logBodyWeight(80000);
+        await helper.logBodyWeight(80500);
+
+        final history = await helper.getBodyWeightHistory();
+        expect(history.length, 2);
+        expect(history.any((h) => h['weight_g'] == 80000), isTrue);
+        expect(history.any((h) => h['weight_g'] == 80500), isTrue);
+      });
+    });
   });
 }
+
