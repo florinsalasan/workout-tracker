@@ -4,10 +4,16 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
+import '../data/default_exercises.dart';
 import '../models/workout_model.dart';
 
 class DatabaseHelper {
-  static final DatabaseHelper instance = DatabaseHelper._init();
+  static DatabaseHelper _instance = DatabaseHelper._init();
+  static DatabaseHelper get instance => _instance;
+
+  @visibleForTesting
+  static set instance(DatabaseHelper helper) => _instance = helper;
+
   static Database? _database;
 
   DatabaseHelper._init();
@@ -24,8 +30,10 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path,
+    final db = await openDatabase(path,
         version: 3, onCreate: _createDB, onUpgrade: _onUpgrade);
+    await seedDefaultExercisesAndTags(db);
+    return db;
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -46,17 +54,6 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         is_custom INTEGER NOT NULL
       )
-    ''');
-
-    // Insert default exercises
-    await db.execute('''
-      INSERT INTO exercises (name, is_custom) VALUES
-      ('Squat (Barbell)', 0),
-      ('Bench Press (Dumbbell)', 0),
-      ('Incline Bench Press (Dumbbell)', 0),
-      ('Seated Leg Curl', 0),
-      ('Lateral Raise (Machine)', 0),
-      ('Lat Pulldown (Cable)', 0)
     ''');
 
     // New tables for completed workouts
@@ -138,6 +135,8 @@ class DatabaseHelper {
         weight_g INTEGER NOT NULL
     )
     ''');
+
+    await seedDefaultExercisesAndTags(db);
   }
 
   Future<int> insertExercise(Exercise exercise) async {
@@ -151,14 +150,25 @@ class DatabaseHelper {
     return result.map((json) => Exercise.fromMap(json)).toList();
   }
 
-  Future<int> updateExercise(Exercise exercise) async {
+  Future<int> updateExercise(Exercise exercise, {String? oldName}) async {
     final db = await database;
-    return await db.update(
-      'exercises',
-      exercise.toMap(),
-      where: 'id = ?',
-      whereArgs: [exercise.id],
-    );
+    return await db.transaction((txn) async {
+      final res = await txn.update(
+        'exercises',
+        exercise.toMap(),
+        where: 'id = ?',
+        whereArgs: [exercise.id],
+      );
+      if (oldName != null && oldName != exercise.name) {
+        await txn.update(
+          'completed_exercises',
+          {'name': exercise.name},
+          where: 'name = ?',
+          whereArgs: [oldName],
+        );
+      }
+      return res;
+    });
   }
 
   Future<int> deleteExercise(int id) async {
@@ -371,12 +381,30 @@ class DatabaseHelper {
     await db.insert('exercise_tags', {'name': tagName});
   }
 
+  Future<void> deleteTag(int tagId) async {
+    final db = await database;
+    await db.delete(
+      'exercise_tags',
+      where: 'id = ?',
+      whereArgs: [tagId],
+    );
+  }
+
   Future<void> addTagToExercise(int exerciseId, int tagId) async {
     final db = await database;
     await db.insert('exercise_tag_relations', {
       'exercise_id': exerciseId,
       'tag_id': tagId,
     });
+  }
+
+  Future<void> removeTagFromExercise(int exerciseId, int tagId) async {
+    final db = await database;
+    await db.delete(
+      'exercise_tag_relations',
+      where: 'exercise_id = ? AND tag_id = ?',
+      whereArgs: [exerciseId, tagId],
+    );
   }
 
   Future<List<String>> getExerciseTags(int exerciseId) async {
@@ -390,14 +418,25 @@ class DatabaseHelper {
     return results.map((map) => map['name'] as String).toList();
   }
 
-  Future<List<String>> getAllTags() async {
+  Future<List<Map<String, dynamic>>> getAllTags() async {
     final db = await database;
     final results = await db.query(
       'exercise_tags',
-      columns: ['name'],
+      columns: ['id', 'name'],
       distinct: true,
     );
-    return results.map((map) => map['name'] as String).toList();
+    return results;
+  }
+
+  Future<Set<int>> getExerciseIdsByTag(int tagId) async {
+    final db = await database;
+    final results = await db.query(
+      'exercise_tag_relations',
+      columns: ['exercise_id'],
+      where: 'tag_id = ?',
+      whereArgs: [tagId],
+    );
+    return results.map((r) => r['exercise_id'] as int).toSet();
   }
 
   Future<void> checkAndUpdatePersonalBests(int workoutId) async {
@@ -823,6 +862,48 @@ class DatabaseHelper {
       GROUP BY cw.id
       ORDER BY cw.date ASC
     ''', [exerciseName]);
+  }
+
+  /// Returns a map of exercise name -> most recent completed workout date.
+  Future<Map<String, DateTime>> getExerciseLastPerformedDates() async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT ce.name AS name, MAX(cw.date) AS last_date
+      FROM completed_exercises ce
+      JOIN completed_workouts cw ON ce.workout_id = cw.id
+      GROUP BY ce.name
+    ''');
+    final map = <String, DateTime>{};
+    for (final row in results) {
+      final name = row['name'] as String?;
+      final dateStr = row['last_date'] as String?;
+      if (name != null && dateStr != null) {
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed != null) {
+          map[name] = parsed;
+        }
+      }
+    }
+    return map;
+  }
+
+  /// Returns a map of exercise name -> total number of completed occurrences.
+  Future<Map<String, int>> getExerciseFrequencyCounts() async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT ce.name AS name, COUNT(*) AS frequency
+      FROM completed_exercises ce
+      GROUP BY ce.name
+    ''');
+    final map = <String, int>{};
+    for (final row in results) {
+      final name = row['name'] as String?;
+      final count = row['frequency'] as int?;
+      if (name != null && count != null) {
+        map[name] = count;
+      }
+    }
+    return map;
   }
 }
 
