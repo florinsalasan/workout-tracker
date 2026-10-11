@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 
 // Bring in your existing imports needed for the logic
 import '../models/workout_model.dart';
+import '../models/workout_template_model.dart';
 import '../providers/history_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../services/db_helpers.dart';
+import '../services/mass_unit_conversions.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
 class WorkoutState extends ChangeNotifier {
@@ -99,6 +101,7 @@ class WorkoutState extends ChangeNotifier {
                           exerciseId: null,
                           reps: set.reps,
                           weight: set.weight,
+                          rpe: set.rpe,
                         ),
                       )
                       .toList(),
@@ -131,6 +134,7 @@ class WorkoutState extends ChangeNotifier {
       }
     }
     historyProvider.addCompletedWorkout(completedWorkout);
+    await historyProvider.loadTemplates();
     notifyListeners();
     cancelWorkout();
   }
@@ -281,28 +285,63 @@ class WorkoutState extends ChangeNotifier {
     }
   }
 
-  void addSet(int exerciseIndex, double weight, int reps) {
+  void addSet(int exerciseIndex, double weight, int reps, {int? rpe}) {
     if (exerciseIndex < _exercises.length) {
       _exercises[exerciseIndex].addSet(
-          weight, reps, PreviousSetData(weight.toString(), reps.toString()));
+        weight,
+        reps,
+        PreviousSetData(weight.toString(), reps.toString()),
+        rpe: rpe,
+      );
       notifyListeners();
     }
   }
 
   void updateSetWithoutNotify(int exerciseIndex, int setIndex, double weight,
-      int reps, bool isCompleted) {
+      int reps, bool isCompleted, {int? rpe}) {
     if (exerciseIndex < _exercises.length &&
         setIndex < _exercises[exerciseIndex].sets.length) {
       final set = _exercises[exerciseIndex].sets[setIndex];
       set.weight = weight;
       set.reps = reps;
       set.isCompleted = isCompleted;
+      if (rpe != null || set.rpe != null) {
+        set.rpe = rpe;
+      }
     }
   }
 
   void updateSet(int exerciseIndex, int setIndex, double weight, int reps,
-      bool isCompleted) {
-    updateSetWithoutNotify(exerciseIndex, setIndex, weight, reps, isCompleted);
+      bool isCompleted, {int? rpe}) {
+    updateSetWithoutNotify(exerciseIndex, setIndex, weight, reps, isCompleted,
+        rpe: rpe);
+    notifyListeners();
+  }
+
+  void startWorkoutFromTemplate(WorkoutTemplate template) {
+    startWorkout();
+    final weightUnit = _userPreferences.weightUnit;
+    for (var ex in template.exercises) {
+      final overlayEx = OverlayExercise(name: ex.name);
+      if (ex.sets.isEmpty) {
+        overlayEx.addSet(0, 0, const PreviousSetData('0', '0'));
+      } else {
+        for (var s in ex.sets) {
+          final displayWeight =
+              WeightConverter.convertFromGrams(s.weight.round(), weightUnit);
+          overlayEx.addSet(
+            s.weight,
+            s.reps,
+            PreviousSetData(
+              displayWeight.toStringAsFixed(1),
+              s.reps.toString(),
+            ),
+            rpe: s.rpe,
+          );
+        }
+      }
+      _exercises.add(overlayEx);
+    }
     notifyListeners();
   }
 
@@ -317,11 +356,12 @@ class OverlayExercise {
 
   OverlayExercise({required this.name}) : sets = [];
 
-  void addSet(double weight, int reps, PreviousSetData previousData) {
+  void addSet(double weight, int reps, PreviousSetData previousData, {int? rpe}) {
     sets.add(
       ExerciseSet(
         weight: weight,
         reps: reps,
+        rpe: rpe,
         isCompleted: false,
         previousData: previousData,
       ),
@@ -332,15 +372,17 @@ class OverlayExercise {
 class ExerciseSet {
   double weight;
   int reps;
+  int? rpe;
   bool isCompleted;
   final PreviousSetData previousData;
 
   ExerciseSet({
     required this.weight,
     required this.reps,
+    this.rpe,
     required this.isCompleted,
     required this.previousData,
   });
 
-  get previousSetData => previousData;
+  PreviousSetData get previousSetData => previousData;
 }

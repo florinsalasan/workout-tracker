@@ -18,6 +18,7 @@ class SetTrackingWidget extends StatefulWidget {
   final PreviousSetData previousSetData;
   final double initialWeight;
   final int initialReps;
+  final int? initialRpe;
   final bool isCompleted;
 
   const SetTrackingWidget({
@@ -27,6 +28,7 @@ class SetTrackingWidget extends StatefulWidget {
     required this.previousSetData,
     required this.initialWeight,
     required this.initialReps,
+    this.initialRpe,
     required this.isCompleted,
   });
 
@@ -37,30 +39,47 @@ class SetTrackingWidget extends StatefulWidget {
 class SetTrackingWidgetState extends State<SetTrackingWidget> {
   late TextEditingController _weightController;
   late TextEditingController _repsController;
+  late TextEditingController _intensityController;
   late FocusNode _weightFocusNode;
   late FocusNode _repsFocusNode;
+  late FocusNode _intensityFocusNode;
   late UserPreferences _userPreferences;
   String _lastUnit = 'kg';
+
+  String _formatIntensity(int? rpe, String mode) {
+    if (rpe == null) return '';
+    if (mode == 'rir') {
+      return UserPreferences.rpeToRir(rpe).toString();
+    }
+    return rpe.toString();
+  }
 
   @override
   void initState() {
     super.initState();
+    _userPreferences = UserPreferences();
+    _lastUnit = _userPreferences.weightUnit;
+
     _weightController =
         TextEditingController(text: widget.initialWeight.toString());
     _repsController =
         TextEditingController(text: widget.initialReps.toString());
+    _intensityController = TextEditingController(
+      text: _formatIntensity(widget.initialRpe, _userPreferences.intensityMode),
+    );
+
     _weightFocusNode = FocusNode();
     _repsFocusNode = FocusNode();
+    _intensityFocusNode = FocusNode();
 
     _weightFocusNode.addListener(_handleWeightFocusChange);
     _repsFocusNode.addListener(_handleRepsFocusChange);
+    _intensityFocusNode.addListener(_handleIntensityFocusChange);
 
-    _userPreferences = UserPreferences();
-    _lastUnit = _userPreferences.weightUnit;
-    _userPreferences.addListener(_updateWeightDisplay);
+    _userPreferences.addListener(_onPreferencesChanged);
   }
 
-  void _updateWeightDisplay() {
+  void _onPreferencesChanged() {
     if (!_weightFocusNode.hasFocus) {
       final currentWeight = double.tryParse(_weightController.text) ?? 0;
       final newUnit = _userPreferences.weightUnit;
@@ -72,15 +91,25 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         _updateWorkoutState();
       }
     }
+    if (!_intensityFocusNode.hasFocus) {
+      final currentSet = context
+          .read<WorkoutState>()
+          .getSet(widget.exerciseIndex, widget.setIndex);
+      _intensityController.text =
+          _formatIntensity(currentSet.rpe, _userPreferences.intensityMode);
+    }
   }
 
   @override
   void didUpdateWidget(SetTrackingWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialWeight != widget.initialWeight ||
-        oldWidget.initialReps != widget.initialReps) {
+        oldWidget.initialReps != widget.initialReps ||
+        oldWidget.initialRpe != widget.initialRpe) {
       _weightController.text = widget.initialWeight.toString();
       _repsController.text = widget.initialReps.toString();
+      _intensityController.text =
+          _formatIntensity(widget.initialRpe, _userPreferences.intensityMode);
     }
   }
 
@@ -106,6 +135,28 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
     }
   }
 
+  void _handleIntensityFocusChange() {
+    if (_intensityFocusNode.hasFocus) {
+      _intensityController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _intensityController.text.length,
+      );
+    } else {
+      _updateWorkoutState();
+    }
+  }
+
+  int? _parseEnteredRpe() {
+    final text = _intensityController.text.trim();
+    if (text.isEmpty) return null;
+    final val = int.tryParse(text);
+    if (val == null) return null;
+    if (_userPreferences.intensityMode == 'rir') {
+      return UserPreferences.rirToRpe(val);
+    }
+    return val.clamp(1, 10);
+  }
+
   void _updateWorkoutState() {
     final workoutState = context.read<WorkoutState>();
     final currentWeight = double.tryParse(_weightController.text) ?? 0;
@@ -118,6 +169,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
       weightInGrams,
       int.tryParse(_repsController.text) ?? 0,
       widget.isCompleted,
+      rpe: _parseEnteredRpe(),
     );
   }
 
@@ -132,7 +184,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
         // Update controllers if the state has changed externally
         if (currentSet.weight !=
             WeightConverter.convertToGrams(
-                double.parse(_weightController.text), weightUnit)) {
+                double.parse(_weightController.text.isEmpty ? '0' : _weightController.text), weightUnit)) {
           _weightController.text = WeightConverter.convertFromGrams(
                   currentSet.weight.round(), weightUnit)
               .toStringAsFixed(1);
@@ -141,25 +193,26 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
           _repsController.text = currentSet.reps.toString();
         }
 
+        final showIntensity = _userPreferences.intensityMode != 'none';
+        final intensityLabel =
+            _userPreferences.intensityMode == 'rir' ? 'RIR' : 'RPE';
+
         return Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16.0,
-            vertical: 4.0, // Increased slightly to accommodate the Material borders
+            vertical: 4.0,
           ),
           child: Row(
             children: [
               SizedBox(
-                width: 25,
+                width: 30,
                 child: Text(
                   '${widget.setIndex + 1}',
-                  // Switched to Material text theme
                   style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(
-                width: 25,
-              ),
+              const SizedBox(width: 12),
               Expanded(
                 flex: 3,
                 child: Text(
@@ -170,15 +223,12 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                       : "${WeightConverter.convertFromGrams(double.parse(currentSet.previousSetData.weight).round(), weightUnit).toStringAsFixed(1)} $weightUnit x ${currentSet.previousSetData.reps}",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    // Switched from Cupertino secondaryLabel to Material onSurfaceVariant
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 14,
                   ),
                 ),
               ),
-              const SizedBox(
-                width: 20,
-              ),
+              const SizedBox(width: 12),
               Expanded(
                 flex: 2,
                 child: TextField(
@@ -188,9 +238,9 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     hintText: weightUnit,
-                    // Keeps the input box compact
-                    isDense: true, 
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     border: const OutlineInputBorder(),
                   ),
                   inputFormatters: [
@@ -201,7 +251,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 12),
               Expanded(
                 flex: 2,
                 child: TextField(
@@ -211,7 +261,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   decoration: const InputDecoration(
                     hintText: 'Reps',
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   inputFormatters: [
@@ -221,13 +272,35 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                   onChanged: (_) => _updateWorkoutState(),
                 ),
               ),
-              const SizedBox(width: 20),
+              if (showIntensity) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _intensityController,
+                    focusNode: _intensityFocusNode,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: intensityLabel,
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      border: const OutlineInputBorder(),
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    textAlign: TextAlign.center,
+                    onChanged: (_) => _updateWorkoutState(),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 12),
               SizedBox(
                 width: 44,
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  // Minimizes the hit target footprint to match Cupertino's button
-                  constraints: const BoxConstraints(), 
+                  constraints: const BoxConstraints(),
                   icon: Icon(
                     currentSet.isCompleted
                         ? Icons.check_circle
@@ -246,6 +319,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
                           .toDouble(),
                       int.tryParse(_repsController.text) ?? 0,
                       !currentSet.isCompleted,
+                      rpe: _parseEnteredRpe(),
                     );
                   },
                 ),
@@ -259,13 +333,16 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   @override
   void dispose() {
-    _userPreferences.removeListener(_updateWeightDisplay);
+    _userPreferences.removeListener(_onPreferencesChanged);
     _weightController.dispose();
     _repsController.dispose();
+    _intensityController.dispose();
     _weightFocusNode.removeListener(_handleWeightFocusChange);
     _repsFocusNode.removeListener(_handleRepsFocusChange);
+    _intensityFocusNode.removeListener(_handleIntensityFocusChange);
     _weightFocusNode.dispose();
     _repsFocusNode.dispose();
+    _intensityFocusNode.dispose();
     super.dispose();
   }
 }

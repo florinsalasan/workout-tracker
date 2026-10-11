@@ -69,12 +69,14 @@ class CompletedSet {
   final int? exerciseId;
   final int reps;
   final double weight;
+  final int? rpe;
 
   CompletedSet({
     this.id,
     required this.exerciseId,
     required this.reps,
     required this.weight,
+    this.rpe,
   });
 
   Map<String, dynamic> toMap() {
@@ -83,6 +85,7 @@ class CompletedSet {
       'exercise_id': exerciseId,
       'reps': reps,
       'weight': weight,
+      'rpe': rpe,
     };
   }
 
@@ -91,7 +94,8 @@ class CompletedSet {
       id: map['id'],
       exerciseId: map['exercise_id'],
       reps: map['reps'],
-      weight: map['weight'],
+      weight: (map['weight'] as num).toDouble(),
+      rpe: map['rpe'] as int?,
     );
   }
 }

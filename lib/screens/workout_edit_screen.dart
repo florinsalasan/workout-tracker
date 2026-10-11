@@ -70,6 +70,7 @@ class _WorkoutEditScreenState extends State<WorkoutEditScreen> {
       for (final set in ex.sets) {
         set.weightController.dispose();
         set.repsController.dispose();
+        set.intensityController.dispose();
       }
     }
     super.dispose();
@@ -105,10 +106,21 @@ class _WorkoutEditScreenState extends State<WorkoutEditScreen> {
             final weightInGrams =
                 WeightConverter.convertToGrams(displayWeight, weightUnit)
                     .toDouble();
+            int? rpe;
+            final intensityText = s.intensityController.text.trim();
+            if (intensityText.isNotEmpty) {
+              final val = int.tryParse(intensityText);
+              if (val != null) {
+                rpe = _prefs.intensityMode == 'rir'
+                    ? UserPreferences.rirToRpe(val)
+                    : val.clamp(1, 10);
+              }
+            }
             return CompletedSet(
               exerciseId: null,
               reps: int.tryParse(s.repsController.text) ?? 0,
               weight: weightInGrams,
+              rpe: rpe,
             );
           }).toList(),
         );
@@ -261,6 +273,9 @@ class _WorkoutEditScreenState extends State<WorkoutEditScreen> {
   Widget _buildExerciseCard(
       BuildContext context, int ei, String weightUnit) {
     final exercise = _exercises[ei];
+    final showIntensity = _prefs.intensityMode != 'none';
+    final intensityHeader = _prefs.intensityMode == 'rir' ? 'RIR' : 'RPE';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
@@ -312,6 +327,13 @@ class _WorkoutEditScreenState extends State<WorkoutEditScreen> {
                       child: Text('Reps',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 12))),
+                  if (showIntensity) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(intensityHeader,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12))),
+                  ],
                   const SizedBox(width: 40),
                 ],
               ),
@@ -335,6 +357,9 @@ class _WorkoutEditScreenState extends State<WorkoutEditScreen> {
 
   Widget _buildSetRow(int ei, int si) {
     final set = _exercises[ei].sets[si];
+    final showIntensity = _prefs.intensityMode != 'none';
+    final intensityLabel = _prefs.intensityMode == 'rir' ? 'RIR' : 'RPE';
+
     return Dismissible(
       key: ObjectKey(set),
       direction: DismissDirection.endToStart,
@@ -384,6 +409,24 @@ class _WorkoutEditScreenState extends State<WorkoutEditScreen> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
+            if (showIntensity) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: set.intensityController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    hintText: intensityLabel,
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  ),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
             // Spacer to match the header width
             const SizedBox(width: 32),
@@ -430,8 +473,13 @@ class _EditableExercise {
 class _EditableSet {
   final TextEditingController weightController;
   final TextEditingController repsController;
+  final TextEditingController intensityController;
 
-  _EditableSet({required this.weightController, required this.repsController});
+  _EditableSet({
+    required this.weightController,
+    required this.repsController,
+    required this.intensityController,
+  });
 
   /// Creates a set pre-populated with the stored gram value converted to the
   /// user's preferred display unit.
@@ -439,15 +487,24 @@ class _EditableSet {
     final unit = UserPreferences().weightUnit;
     final displayWeight =
         WeightConverter.convertFromGrams(set.weight.round(), unit);
+    final mode = UserPreferences().intensityMode;
+    String intensityText = '';
+    if (set.rpe != null) {
+      intensityText = mode == 'rir'
+          ? UserPreferences.rpeToRir(set.rpe!).toString()
+          : set.rpe.toString();
+    }
     return _EditableSet(
       weightController:
           TextEditingController(text: displayWeight.toStringAsFixed(1)),
       repsController: TextEditingController(text: set.reps.toString()),
+      intensityController: TextEditingController(text: intensityText),
     );
   }
 
   factory _EditableSet.empty() => _EditableSet(
         weightController: TextEditingController(text: '0.0'),
         repsController: TextEditingController(text: '0'),
+        intensityController: TextEditingController(text: ''),
       );
 }

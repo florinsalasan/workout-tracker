@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
-
 import '../models/workout_model.dart';
+import '../models/workout_template_model.dart';
+import '../screens/template_edit_screen.dart';
+import '../services/db_helpers.dart';
 
 class TemplatePreviewCard extends StatelessWidget {
   final CompletedWorkout template;
   final int templateId;
   final String name;
   final VoidCallback onTap;
+  final WorkoutTemplate? workoutTemplate;
 
   const TemplatePreviewCard({
     super.key,
@@ -16,6 +19,7 @@ class TemplatePreviewCard extends StatelessWidget {
     required this.templateId,
     required this.name,
     required this.onTap,
+    this.workoutTemplate,
   });
 
   @override
@@ -85,6 +89,49 @@ class TemplatePreviewCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Edit Template'),
+                onTap: () async {
+                  Navigator.pop(bottomSheetContext);
+                  WorkoutTemplate? wt = workoutTemplate;
+                  if (wt == null) {
+                    final history = context.read<HistoryProvider>();
+                    final matches = history.workoutTemplates
+                        .where((t) => t.id == templateId || t.name == name);
+                    if (matches.isNotEmpty) {
+                      wt = matches.first;
+                    } else {
+                      wt = await DatabaseHelper.instance.getTemplate(templateId);
+                    }
+                  }
+                  wt ??= WorkoutTemplate(
+                      id: templateId,
+                      name: name,
+                      exercises: template.exercises.asMap().entries.map((e) {
+                        return TemplateExercise(
+                          name: e.value.name,
+                          orderIndex: e.key,
+                          sets: e.value.sets.asMap().entries.map((s) {
+                            return TemplateSet(
+                              reps: s.value.reps,
+                              weight: s.value.weight,
+                              rpe: s.value.rpe,
+                              setIndex: s.key,
+                            );
+                          }).toList(),
+                        );
+                      }).toList(),
+                    );
+                  if (context.mounted) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TemplateEditScreen(template: wt),
+                      ),
+                    );
+                  }
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.edit),
                 title: const Text('Rename Template'),

@@ -47,6 +47,28 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildSettingsGroup(
                     context,
+                    'Workout Tracking',
+                    [
+                      _buildUnitSetting(
+                        'Intensity Metric',
+                        userPreferences.intensityMode,
+                        (String? newValue) {
+                          if (newValue != null) {
+                            userPreferences.setIntensityMode(newValue);
+                          }
+                        },
+                        ['none', 'rpe', 'rir'],
+                        labels: {
+                          'none': 'Off',
+                          'rpe': 'RPE',
+                          'rir': 'RIR',
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSettingsGroup(
+                    context,
                     'Personal Information',
                     [
                       _buildHeightDisplay(context, userPreferences),
@@ -97,16 +119,18 @@ class ProfileScreen extends StatelessWidget {
     String title,
     String currentValue,
     void Function(String?) onChanged,
-    List<String> options,
-  ) {
+    List<String> options, {
+    Map<String, String>? labels,
+  }) {
     return ListTile(
       title: Text(title),
       trailing: SegmentedButton<String>(
         showSelectedIcon: false, 
         segments: options.map((String option) {
+          final labelText = labels?[option] ?? option;
           return ButtonSegment<String>(
             value: option,
-            label: Text(option),
+            label: Text(labelText),
           );
         }).toList(),
         selected: {currentValue},

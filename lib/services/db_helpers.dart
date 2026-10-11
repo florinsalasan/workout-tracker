@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../data/default_exercises.dart';
 import '../models/workout_model.dart';
+import '../models/workout_template_model.dart';
 
 class DatabaseHelper {
   static DatabaseHelper _instance = DatabaseHelper._init();
@@ -31,7 +32,7 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
     final db = await openDatabase(path,
-        version: 3, onCreate: _createDB, onUpgrade: _onUpgrade);
+        version: 4, onCreate: _createDB, onUpgrade: _onUpgrade);
     await seedDefaultExercisesAndTags(db);
     return db;
   }
@@ -39,11 +40,90 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 3) {
       await db.execute(
-          'ALTER TABLE personal_bests ADD COLUMN type TEXT NOT NULL DEFAULT "rep_based');
+          'ALTER TABLE personal_bests ADD COLUMN type TEXT NOT NULL DEFAULT "rep_based"');
       await db
           .execute('ALTER TABLE personal_bests ADD COLUMN total_weight REAL');
       await db.execute(
-          'CREATE UNIQUE INDEX idx_personal_bests_unique ON personal_bests (exerciseId, reps, type)');
+          'CREATE UNIQUE INDEX idx_personal_bests_unique ON personal_bests (exercise_id, reps, type)');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE completed_sets ADD COLUMN rpe INTEGER;');
+
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS templates(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS template_exercises(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE
+      )
+      ''');
+
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS template_sets(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_exercise_id INTEGER NOT NULL,
+        reps INTEGER NOT NULL,
+        weight REAL NOT NULL,
+        rpe INTEGER,
+        set_index INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (template_exercise_id) REFERENCES template_exercises (id) ON DELETE CASCADE
+      )
+      ''');
+
+      // Migrate existing templates from workout_templates if any exist
+      try {
+        final legacyTemplates = await db.rawQuery('SELECT * FROM workout_templates');
+        for (final lt in legacyTemplates) {
+          final tName = lt['name'] as String;
+          final workoutId = lt['workout_id'] as int;
+          final tId = await db.insert('templates', {'name': tName});
+
+          final exRows = await db.query(
+            'completed_exercises',
+            where: 'workout_id = ?',
+            whereArgs: [workoutId],
+            orderBy: 'id ASC',
+          );
+
+          for (int i = 0; i < exRows.length; i++) {
+            final exRow = exRows[i];
+            final exId = exRow['id'] as int;
+            final exName = exRow['name'] as String;
+
+            final teId = await db.insert('template_exercises', {
+              'template_id': tId,
+              'name': exName,
+              'order_index': i,
+            });
+
+            final setRows = await db.query(
+              'completed_sets',
+              where: 'exercise_id = ?',
+              whereArgs: [exId],
+              orderBy: 'id ASC',
+            );
+
+            for (int j = 0; j < setRows.length; j++) {
+              final sRow = setRows[j];
+              await db.insert('template_sets', {
+                'template_exercise_id': teId,
+                'reps': sRow['reps'] as int,
+                'weight': (sRow['weight'] as num).toDouble(),
+                'rpe': sRow['rpe'] as int?,
+                'set_index': j,
+              });
+            }
+          }
+        }
+      } catch (_) {}
     }
   }
 
@@ -75,6 +155,35 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+    CREATE TABLE templates(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE template_exercises(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      order_index INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE template_sets(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_exercise_id INTEGER NOT NULL,
+      reps INTEGER NOT NULL,
+      weight REAL NOT NULL,
+      rpe INTEGER,
+      set_index INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (template_exercise_id) REFERENCES template_exercises (id) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
     CREATE TABLE completed_exercises(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       workout_id INTEGER NOT NULL,
@@ -89,6 +198,7 @@ class DatabaseHelper {
       exercise_id INTEGER NOT NULL,
       reps INTEGER NOT NULL,
       weight REAL NOT NULL,
+      rpe INTEGER,
       FOREIGN KEY (exercise_id) REFERENCES completed_exercises (id) ON DELETE CASCADE
     )
     ''');
@@ -199,6 +309,7 @@ class DatabaseHelper {
             'exercise_id': exerciseId,
             'reps': set.reps,
             'weight': set.weight,
+            'rpe': set.rpe,
           };
           await txn.insert('completed_sets', setMap);
         }
@@ -208,6 +319,26 @@ class DatabaseHelper {
           'workout_id': workoutId,
           'name': templateName,
         });
+
+        final tId = await txn.insert('templates', {'name': templateName});
+        for (int i = 0; i < workout.exercises.length; i++) {
+          final exercise = workout.exercises[i];
+          final teId = await txn.insert('template_exercises', {
+            'template_id': tId,
+            'name': exercise.name,
+            'order_index': i,
+          });
+          for (int j = 0; j < exercise.sets.length; j++) {
+            final set = exercise.sets[j];
+            await txn.insert('template_sets', {
+              'template_exercise_id': teId,
+              'reps': set.reps,
+              'weight': set.weight,
+              'rpe': set.rpe,
+              'set_index': j,
+            });
+          }
+        }
       }
       return workoutId;
     });
@@ -259,6 +390,7 @@ class DatabaseHelper {
           exerciseId: setMap['exercise_id'] as int?,
           reps: setMap['reps'] as int,
           weight: convertedWeight,
+          rpe: setMap['rpe'] as int?,
         );
       }).toList();
       return exercise;
@@ -308,20 +440,241 @@ class DatabaseHelper {
 
   Future<int> deleteWorkoutTemplate(int templateId) async {
     final db = await database;
-    return await db.delete(
-      'workout_templates',
-      where: 'id = ?',
-      whereArgs: [templateId],
-    );
+    return await db.transaction((txn) async {
+      final legacyRows = await txn.query('workout_templates', where: 'id = ?', whereArgs: [templateId]);
+      if (legacyRows.isNotEmpty) {
+        final name = legacyRows.first['name'] as String?;
+        if (name != null) {
+          final tRows = await txn.query('templates', where: 'name = ?', whereArgs: [name]);
+          for (final t in tRows) {
+            final tId = t['id'] as int;
+            final exRows = await txn.query('template_exercises', where: 'template_id = ?', whereArgs: [tId]);
+            for (final ex in exRows) {
+              await txn.delete('template_sets', where: 'template_exercise_id = ?', whereArgs: [ex['id']]);
+            }
+            await txn.delete('template_exercises', where: 'template_id = ?', whereArgs: [tId]);
+            await txn.delete('templates', where: 'id = ?', whereArgs: [tId]);
+          }
+        }
+      }
+      return await txn.delete(
+        'workout_templates',
+        where: 'id = ?',
+        whereArgs: [templateId],
+      );
+    });
   }
 
   Future<int> renameWorkoutTemplate(int templateId, String newName) async {
     final db = await database;
+    return await db.transaction((txn) async {
+      final legacyRows = await txn.query('workout_templates', where: 'id = ?', whereArgs: [templateId]);
+      if (legacyRows.isNotEmpty) {
+        final oldName = legacyRows.first['name'] as String?;
+        if (oldName != null) {
+          await txn.update('templates', {'name': newName}, where: 'name = ?', whereArgs: [oldName]);
+        }
+      }
+      return await txn.update(
+        'workout_templates',
+        {'name': newName},
+        where: 'id = ?',
+        whereArgs: [templateId],
+      );
+    });
+  }
+
+  // ── Decoupled Template Operations ──────────────────────────────────────────
+
+  Future<int> insertTemplate(WorkoutTemplate template) async {
+    final db = await database;
+    return await db.transaction((txn) async {
+      final templateId = await txn.insert('templates', {
+        'name': template.name,
+      });
+
+      for (int i = 0; i < template.exercises.length; i++) {
+        final ex = template.exercises[i];
+        final teId = await txn.insert('template_exercises', {
+          'template_id': templateId,
+          'name': ex.name,
+          'order_index': ex.orderIndex != 0 ? ex.orderIndex : i,
+        });
+
+        for (int j = 0; j < ex.sets.length; j++) {
+          final set = ex.sets[j];
+          await txn.insert('template_sets', {
+            'template_exercise_id': teId,
+            'reps': set.reps,
+            'weight': set.weight,
+            'rpe': set.rpe,
+            'set_index': set.setIndex != 0 ? set.setIndex : j,
+          });
+        }
+      }
+      return templateId;
+    });
+  }
+
+  Future<List<WorkoutTemplate>> getAllTemplates() async {
+    final db = await database;
+    final templateRows = await db.query('templates', orderBy: 'id ASC');
+    if (templateRows.isEmpty) return [];
+
+    final exerciseRows = await db.query(
+      'template_exercises',
+      orderBy: 'order_index ASC, id ASC',
+    );
+    final setRows = await db.query(
+      'template_sets',
+      orderBy: 'set_index ASC, id ASC',
+    );
+
+    // Map sets to template_exercise_id
+    final setsByExerciseId = <int, List<TemplateSet>>{};
+    for (final sRow in setRows) {
+      final teId = sRow['template_exercise_id'] as int;
+      setsByExerciseId.putIfAbsent(teId, () => []).add(TemplateSet.fromMap(sRow));
+    }
+
+    // Map exercises to template_id
+    final exercisesByTemplateId = <int, List<TemplateExercise>>{};
+    for (final exRow in exerciseRows) {
+      final tId = exRow['template_id'] as int;
+      final teId = exRow['id'] as int;
+      final sets = setsByExerciseId[teId] ?? [];
+      exercisesByTemplateId.putIfAbsent(tId, () => []).add(
+        TemplateExercise.fromMap(exRow, sets),
+      );
+    }
+
+    return templateRows.map((tRow) {
+      final tId = tRow['id'] as int;
+      final exercises = exercisesByTemplateId[tId] ?? [];
+      return WorkoutTemplate.fromMap(tRow, exercises);
+    }).toList();
+  }
+
+  Future<WorkoutTemplate?> getTemplate(int id) async {
+    final db = await database;
+    final templateRows = await db.query(
+      'templates',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (templateRows.isEmpty) return null;
+
+    final exerciseRows = await db.query(
+      'template_exercises',
+      where: 'template_id = ?',
+      whereArgs: [id],
+      orderBy: 'order_index ASC, id ASC',
+    );
+
+    final exercises = <TemplateExercise>[];
+    for (final exRow in exerciseRows) {
+      final teId = exRow['id'] as int;
+      final setRows = await db.query(
+        'template_sets',
+        where: 'template_exercise_id = ?',
+        whereArgs: [teId],
+        orderBy: 'set_index ASC, id ASC',
+      );
+      final sets = setRows.map((s) => TemplateSet.fromMap(s)).toList();
+      exercises.add(TemplateExercise.fromMap(exRow, sets));
+    }
+
+    return WorkoutTemplate.fromMap(templateRows.first, exercises);
+  }
+
+  Future<int> updateTemplate(WorkoutTemplate template) async {
+    final db = await database;
+    if (template.id == null) return -1;
+
+    return await db.transaction((txn) async {
+      await txn.update(
+        'templates',
+        {'name': template.name},
+        where: 'id = ?',
+        whereArgs: [template.id],
+      );
+
+      final existingExRows = await txn.query(
+        'template_exercises',
+        where: 'template_id = ?',
+        whereArgs: [template.id],
+      );
+      for (final exRow in existingExRows) {
+        await txn.delete(
+          'template_sets',
+          where: 'template_exercise_id = ?',
+          whereArgs: [exRow['id']],
+        );
+      }
+      await txn.delete(
+        'template_exercises',
+        where: 'template_id = ?',
+        whereArgs: [template.id],
+      );
+
+      for (int i = 0; i < template.exercises.length; i++) {
+        final ex = template.exercises[i];
+        final teId = await txn.insert('template_exercises', {
+          'template_id': template.id,
+          'name': ex.name,
+          'order_index': i,
+        });
+
+        for (int j = 0; j < ex.sets.length; j++) {
+          final set = ex.sets[j];
+          await txn.insert('template_sets', {
+            'template_exercise_id': teId,
+            'reps': set.reps,
+            'weight': set.weight,
+            'rpe': set.rpe,
+            'set_index': j,
+          });
+        }
+      }
+      return template.id!;
+    });
+  }
+
+  Future<int> deleteTemplate(int id) async {
+    final db = await database;
+    return await db.transaction((txn) async {
+      final exRows = await txn.query(
+        'template_exercises',
+        where: 'template_id = ?',
+        whereArgs: [id],
+      );
+      for (final exRow in exRows) {
+        await txn.delete(
+          'template_sets',
+          where: 'template_exercise_id = ?',
+          whereArgs: [exRow['id']],
+        );
+      }
+      await txn.delete(
+        'template_exercises',
+        where: 'template_id = ?',
+        whereArgs: [id],
+      );
+      return await txn.delete(
+        'templates',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+  }
+
+  Future<int> renameTemplate(int id, String newName) async {
+    final db = await database;
     return await db.update(
-      'workout_templates',
+      'templates',
       {'name': newName},
       where: 'id = ?',
-      whereArgs: [templateId],
+      whereArgs: [id],
     );
   }
 
@@ -784,6 +1137,7 @@ class DatabaseHelper {
             'exercise_id': exerciseId,
             'reps': set.reps,
             'weight': set.weight,
+            'rpe': set.rpe,
           });
         }
       }
