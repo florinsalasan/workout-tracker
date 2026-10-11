@@ -57,7 +57,37 @@ Future<DatabaseHelper> setupTestDb() async {
             exercise_id INTEGER NOT NULL,
             reps INTEGER NOT NULL,
             weight REAL NOT NULL,
+            rpe INTEGER,
             FOREIGN KEY (exercise_id) REFERENCES completed_exercises (id) ON DELETE CASCADE
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE templates(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE template_exercises(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            order_index INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE template_sets(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_exercise_id INTEGER NOT NULL,
+            reps INTEGER NOT NULL,
+            weight REAL NOT NULL,
+            rpe INTEGER,
+            set_index INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (template_exercise_id) REFERENCES template_exercises (id) ON DELETE CASCADE
           )
         ''');
 

@@ -25,103 +25,119 @@ class ExerciseTrackingWidget extends StatelessWidget {
         final userPreferences = UserPreferences();
         final weightUnit = userPreferences.weightUnit;
         final exercise = workoutState.exercises[exerciseIndex];
+        final intensityMode = userPreferences.intensityMode;
+        final showIntensity = intensityMode != 'none';
+        final intensityHeader = intensityMode == 'rir' ? 'RIR' : 'RPE';
+
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Text(
-                      exerciseName,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                if (!isReordering) ...[
-                  IconButton(
-                    tooltip: 'Swap exercise',
-                    onPressed: () => _swapExercise(context, exerciseIndex),
-                    icon: const Icon(Icons.swap_horiz),
-                  ),
-                  IconButton(
-                    onPressed: () => _removeExercise(context, exerciseIndex),
-                    icon: const Icon(Icons.clear),
-                  ),
-                ],
-              ],
-            ),
-            if (!isReordering) ...[
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
+                Row(
                   children: [
-                    const SizedBox(width: 50, child: Text('Set')),
-                    const SizedBox(width: 10),
-                    const Expanded(flex: 2, child: Text('Previous')),
-                    const SizedBox(width: 25),
                     Expanded(
-                      flex: 2,
-                      child: Text(
-                        weightUnit,
-                        textAlign: TextAlign.center,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: Text(
+                          exerciseName,
+                          style: Theme.of(context).textTheme.titleLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 25),
-                    const Expanded(flex: 2, child: Text('Reps')),
-                    const SizedBox(width: 44, child: Text('Done')),
+                    if (!isReordering) ...[
+                      IconButton(
+                        tooltip: 'Swap exercise',
+                        onPressed: () => _swapExercise(context, exerciseIndex),
+                        icon: const Icon(Icons.swap_horiz),
+                      ),
+                      IconButton(
+                        onPressed: () => _removeExercise(context, exerciseIndex),
+                        icon: const Icon(Icons.clear),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              ...exercise.sets.asMap().entries.map((entry) {
-                final setIndex = entry.key;
-                final set = entry.value;
-                return Dismissible(
-                  key: UniqueKey(),
-                  direction: DismissDirection.endToStart,
-                  onDismissed: (direction) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      workoutState.removeSet(exerciseIndex, setIndex);
-                    });
-                  },
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20.0),
-                    color: Colors.red,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                if (!isReordering) ...[
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Row(
                       children: [
-                        Icon(
-                          Icons.delete,
-                          color: Colors.white,
+                        const SizedBox(width: 30, child: Text('Set', textAlign: TextAlign.center)),
+                        const SizedBox(width: 12),
+                        const Expanded(flex: 3, child: Text('Previous', textAlign: TextAlign.center)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            weightUnit,
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        SizedBox(width: 5),
-                        Text(
-                          'Delete',
-                          style: TextStyle(color: Colors.white),
-                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(flex: 2, child: Text('Reps', textAlign: TextAlign.center)),
+                        if (showIntensity) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              intensityHeader,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 12),
+                        const SizedBox(width: 44, child: Text('Done', textAlign: TextAlign.center)),
                       ],
                     ),
                   ),
-                  child: SetTrackingWidget(
-                    key: UniqueKey(),
-                    exerciseIndex: exerciseIndex,
-                    setIndex: setIndex,
-                    initialWeight: set.weight,
-                    initialReps: set.reps,
-                    isCompleted: set.isCompleted,
-                    previousSetData: PreviousSetData(
-                      set.weight.toString(),
-                      set.reps.toString(),
-                    ),
-                  ),
-                );
-              }),
+                  ...exercise.sets.asMap().entries.map((entry) {
+                    final setIndex = entry.key;
+                    final set = entry.value;
+                    return Dismissible(
+                      key: UniqueKey(),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (direction) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          workoutState.removeSet(exerciseIndex, setIndex);
+                        });
+                      },
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20.0),
+                        color: Colors.red,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 5),
+                            Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      child: SetTrackingWidget(
+                        key: UniqueKey(),
+                        exerciseIndex: exerciseIndex,
+                        setIndex: setIndex,
+                        initialWeight: set.weight,
+                        initialReps: set.reps,
+                        initialRpe: set.rpe,
+                        isCompleted: set.isCompleted,
+                        previousSetData: PreviousSetData(
+                          set.weight.toString(),
+                          set.reps.toString(),
+                        ),
+                      ),
+                    );
+                  }),
               Padding(
                 padding: const EdgeInsets.all(10.0),
                 child: TextButton(

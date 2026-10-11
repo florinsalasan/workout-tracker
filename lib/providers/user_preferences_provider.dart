@@ -7,6 +7,7 @@ class UserPreferences extends ChangeNotifier {
   static const String _heightUnitKey = 'heightUnit';
   static const String _heightCmKey = 'height_cm'; 
   static const String _weightGKey = 'weight_g'; // Using grams to match DB
+  static const String _intensityModeKey = 'intensity_mode'; // 'none', 'rpe', 'rir'
   
   static final UserPreferences _instance = UserPreferences._internal();
 
@@ -21,6 +22,7 @@ class UserPreferences extends ChangeNotifier {
   late SharedPreferences _prefs;
   String _weightUnit = 'lbs';
   String _heightUnit = 'cm';
+  String _intensityMode = 'none'; // 'none', 'rpe', 'rir'
   
   // Base Units (Stored as integers for weight to match DB!)
   double _baseHeightCm = 0.0;
@@ -28,6 +30,7 @@ class UserPreferences extends ChangeNotifier {
 
   String get weightUnit => _weightUnit;
   String get heightUnit => _heightUnit;
+  String get intensityMode => _intensityMode;
   
   // Raw getters if needed for analytics elsewhere
   double get rawHeightCm => _baseHeightCm;
@@ -48,10 +51,23 @@ class UserPreferences extends ChangeNotifier {
     return _baseHeightCm;
   }
 
+  /// Converts a stored integer RPE (6..10) to Reps In Reserve (4..0).
+  static int? rpeToRir(int? rpe) {
+    if (rpe == null) return null;
+    return (10 - rpe).clamp(0, 10);
+  }
+
+  /// Converts an entered RIR (0..4+) to stored integer RPE (10..6).
+  static int? rirToRpe(int? rir) {
+    if (rir == null) return null;
+    return (10 - rir).clamp(6, 10);
+  }
+
   Future<void> _loadPreferences() async {
     _prefs = await SharedPreferences.getInstance();
     _weightUnit = _prefs.getString(_weightUnitKey) ?? 'lbs';
     _heightUnit = _prefs.getString(_heightUnitKey) ?? 'cm';
+    _intensityMode = _prefs.getString(_intensityModeKey) ?? 'none';
     _baseHeightCm = _prefs.getDouble(_heightCmKey) ?? 0.0;
     _baseWeightGrams = _prefs.getInt(_weightGKey) ?? 0; 
     notifyListeners();
@@ -70,6 +86,14 @@ class UserPreferences extends ChangeNotifier {
     if (_heightUnit != unit) {
       _heightUnit = unit;
       await _prefs.setString(_heightUnitKey, unit);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setIntensityMode(String mode) async {
+    if (_intensityMode != mode) {
+      _intensityMode = mode;
+      await _prefs.setString(_intensityModeKey, mode);
       notifyListeners();
     }
   }

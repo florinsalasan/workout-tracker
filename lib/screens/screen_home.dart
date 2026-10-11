@@ -4,8 +4,10 @@ import 'package:workout_tracker/widgets/sliver_layout.dart';
 
 import '../widgets/template_preview.dart';
 import '../models/workout_model.dart';
+import '../models/workout_template_model.dart';
 import '../providers/history_provider.dart';
 import '../providers/workout_provider.dart';
+import '../screens/template_edit_screen.dart';
 import '../services/db_helpers.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -67,8 +69,8 @@ class HomeScreen extends StatelessWidget {
   Widget _buildTemplateSection(BuildContext context) {
     return Consumer<HistoryProvider>(
       builder: (context, historyProvider, child) {
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: DatabaseHelper.instance.getWorkoutTemplates(),
+        return FutureBuilder<List<WorkoutTemplate>>(
+          future: DatabaseHelper.instance.getAllTemplates(),
           builder: (context, templateSnapshot) {
             if (templateSnapshot.connectionState == ConnectionState.waiting) {
               return const CircularProgressIndicator();
@@ -86,15 +88,19 @@ class HomeScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 35.0,
                     child: FilledButton(
-                      // padding: const EdgeInsets.all(0),
                       child: const Text(
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                          'Create new template'),
-                      onPressed: () {
-                        // Navigate to the current workout screen or start a new workout
-                        context
-                            .read<WorkoutState>()
-                            .startWorkout(isTemplateCreation: true);
+                        'Create new template',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TemplateEditScreen(),
+                          ),
+                        );
+                        if (context.mounted) {
+                          await historyProvider.loadTemplates();
+                        }
                       },
                     ),
                   ),
@@ -102,77 +108,84 @@ class HomeScreen extends StatelessWidget {
               );
             }
 
-            return FutureBuilder<List<CompletedWorkout>>(
-              future: DatabaseHelper.instance.getAllCompletedWorkouts(),
-              builder: (context, workoutSnapshot) {
-                if (workoutSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
-                if (!workoutSnapshot.hasData) {
-                  return const Text("Error loading workouts");
-                }
+            final templates = templateSnapshot.data!;
 
-                final templates = templateSnapshot.data!;
-                final allWorkouts = workoutSnapshot.data!;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Workout Templates",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    mainAxisExtent: 130,
+                  ),
+                  itemCount: templates.length,
+                  itemBuilder: (context, index) {
+                    final template = templates[index];
+                    final previewWorkout = CompletedWorkout(
+                      id: template.id,
+                      name: template.name,
+                      exercises: template.exercises
+                          .map((e) => CompletedExercise(
+                                workoutId: null,
+                                name: e.name,
+                                sets: e.sets
+                                    .map((s) => CompletedSet(
+                                          reps: s.reps,
+                                          weight: s.weight,
+                                          rpe: s.rpe,
+                                          exerciseId: null,
+                                        ))
+                                    .toList(),
+                              ))
+                          .toList(),
+                      durationInSeconds: 0,
+                      date: DateTime.now(),
+                    );
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Workout Templates",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    return TemplatePreviewCard(
+                      template: previewWorkout,
+                      templateId: template.id ?? 0,
+                      name: template.name,
+                      workoutTemplate: template,
+                      onTap: () =>
+                          _startWorkoutFromTemplate(context, template),
+                    );
+                  },
+                ),
+                const SizedBox(
+                  height: 35,
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 35.0,
+                  child: FilledButton(
+                    child: const Text(
+                      'Create new template',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 16),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        mainAxisExtent: 130,
-                      ),
-                      itemCount: templates.length,
-                      itemBuilder: (context, index) {
-                        final template = templates[index];
-                        final fullTemplate = allWorkouts.firstWhere(
-                          (workout) => workout.id == template['id'],
-                          orElse: () => CompletedWorkout.fromMap(template),
-                        );
-                        return TemplatePreviewCard(
-                          template: fullTemplate,
-                          templateId: template['template_id'],
-                          name: template['template_name'],
-                          onTap: () =>
-                              _startWorkoutFromTemplate(context, fullTemplate),
-                        );
-                      },
-                    ),
-                    const SizedBox(
-                      height: 35,
-                    ),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 35.0,
-                      child: FilledButton(
-                        // padding: const EdgeInsets.all(0),
-                        child: const Text(
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                            'Create new template'),
-                        onPressed: () {
-                          // Navigate to the current workout screen or start a new workout
-                          context
-                              .read<WorkoutState>()
-                              .startWorkout(isTemplateCreation: true);
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TemplateEditScreen(),
+                        ),
+                      );
+                      if (context.mounted) {
+                        await historyProvider.loadTemplates();
+                      }
+                    },
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -181,22 +194,8 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _startWorkoutFromTemplate(
-      BuildContext context, CompletedWorkout template) async {
+      BuildContext context, WorkoutTemplate template) {
     final workoutState = Provider.of<WorkoutState>(context, listen: false);
-    final dbHelper = DatabaseHelper.instance;
-    final allWorkouts = await dbHelper.getAllCompletedWorkouts();
-    final workoutTemplate =
-        allWorkouts.where((currWorkout) => currWorkout.id == template.id);
-
-    workoutState.startWorkout();
-    // Populate workout state with template data
-    for (var exercise in workoutTemplate.first.exercises) {
-      if (!context.mounted) return;
-      workoutState.addExercise(exercise.name, context);
-      for (var set in exercise.sets) {
-        workoutState.addSet(
-            workoutState.exercises.length, set.weight, set.reps);
-      }
-    }
+    workoutState.startWorkoutFromTemplate(template);
   }
 }

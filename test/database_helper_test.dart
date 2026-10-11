@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:workout_tracker/models/workout_model.dart';
+import 'package:workout_tracker/models/workout_template_model.dart';
 import 'package:workout_tracker/services/db_helpers.dart';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,35 @@ Future<void> _createSchema(Database db, int version) async {
   ''');
 
   await db.execute('''
+    CREATE TABLE templates(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE template_exercises(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      order_index INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE template_sets(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_exercise_id INTEGER NOT NULL,
+      reps INTEGER NOT NULL,
+      weight REAL NOT NULL,
+      rpe INTEGER,
+      set_index INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (template_exercise_id) REFERENCES template_exercises (id) ON DELETE CASCADE
+    )
+  ''');
+
+  await db.execute('''
     CREATE TABLE completed_exercises(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       workout_id INTEGER NOT NULL,
@@ -67,6 +97,7 @@ Future<void> _createSchema(Database db, int version) async {
       exercise_id INTEGER NOT NULL,
       reps INTEGER NOT NULL,
       weight REAL NOT NULL,
+      rpe INTEGER,
       FOREIGN KEY (exercise_id) REFERENCES completed_exercises (id) ON DELETE CASCADE
     )
   ''');
@@ -816,6 +847,207 @@ void main() {
         expect(history.any((h) => h['weight_g'] == 80500), isTrue);
       });
     });
+
+    // ── Decoupled Template CRUD & Isolation ─────────────────────────────
+    group('Decoupled Template operations', () {
+      test('insertTemplate, getAllTemplates, and getTemplate round-trip', () async {
+        final template = WorkoutTemplate(
+          name: 'Hypertrophy Upper',
+          exercises: [
+            TemplateExercise(
+              name: 'Incline Dumbbell Press',
+              orderIndex: 0,
+              sets: [
+                TemplateSet(reps: 10, weight: 30000.0, rpe: 8, setIndex: 0),
+                TemplateSet(reps: 8, weight: 32000.0, rpe: 9, setIndex: 1),
+              ],
+            ),
+            TemplateExercise(
+              name: 'Chest Supported Row',
+              orderIndex: 1,
+              sets: [
+                TemplateSet(reps: 12, weight: 40000.0, rpe: 8, setIndex: 0),
+              ],
+            ),
+          ],
+        );
+
+        final templateId = await helper.insertTemplate(template);
+        expect(templateId, isPositive);
+
+        final all = await helper.getAllTemplates();
+        expect(all.length, 1);
+        expect(all.first.name, 'Hypertrophy Upper');
+        expect(all.first.exercises.length, 2);
+        expect(all.first.exercises[0].name, 'Incline Dumbbell Press');
+        expect(all.first.exercises[0].sets.length, 2);
+        expect(all.first.exercises[0].sets[0].rpe, 8);
+        expect(all.first.exercises[0].sets[1].rpe, 9);
+        expect(all.first.exercises[1].name, 'Chest Supported Row');
+
+        final single = await helper.getTemplate(templateId);
+        expect(single, isNotNull);
+        expect(single!.name, 'Hypertrophy Upper');
+        expect(single.exercises.length, 2);
+        expect(single.exercises[0].sets[0].weight, 30000.0);
+      });
+
+      test('updateTemplate updates template without affecting completed workouts', () async {
+        // 1. Create a completed workout
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-09-01T10:00:00.000'),
+          durationInSeconds: 3000,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Barbell Squat',
+              sets: [CompletedSet(exerciseId: null, reps: 5, weight: 100000.0, rpe: 8)],
+            ),
+          ],
+        );
+        final workoutId = await helper.insertCompletedWorkout(workout, templateName: 'Leg Day');
+
+        // 2. Insert and modify decoupled template
+        final allTemplates = await helper.getAllTemplates();
+        expect(allTemplates.any((t) => t.name == 'Leg Day'), isTrue);
+        final legDayTemplate = allTemplates.firstWhere((t) => t.name == 'Leg Day');
+
+        final updated = legDayTemplate.copyWith(
+          name: 'Heavy Leg Day',
+          exercises: [
+            TemplateExercise(
+              name: 'Front Squat',
+              orderIndex: 0,
+              sets: [TemplateSet(reps: 3, weight: 90000.0, rpe: 9, setIndex: 0)],
+            ),
+          ],
+        );
+        await helper.updateTemplate(updated);
+
+        // Verify template changed
+        final reloadedTemplate = await helper.getTemplate(legDayTemplate.id!);
+        expect(reloadedTemplate!.name, 'Heavy Leg Day');
+        expect(reloadedTemplate.exercises.first.name, 'Front Squat');
+
+        // Verify completed workout is UNCHANGED
+        final savedWorkout = await helper.getCompletedWorkout(workoutId);
+        expect(savedWorkout, isNotNull);
+        expect(savedWorkout!.exercises.first.name, 'Barbell Squat');
+      });
+
+      test('deleteTemplate removes template without deleting completed workout', () async {
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-09-02T10:00:00.000'),
+          durationInSeconds: 2000,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Deadlift',
+              sets: [CompletedSet(exerciseId: null, reps: 5, weight: 140000.0, rpe: 9)],
+            ),
+          ],
+        );
+        final workoutId = await helper.insertCompletedWorkout(workout, templateName: 'Pull Day');
+
+        final templates = await helper.getAllTemplates();
+        final pullTemplate = templates.firstWhere((t) => t.name == 'Pull Day');
+
+        await helper.deleteTemplate(pullTemplate.id!);
+
+        final remainingTemplates = await helper.getAllTemplates();
+        expect(remainingTemplates.any((t) => t.id == pullTemplate.id), isFalse);
+
+        // Completed workout remains intact!
+        final savedWorkout = await helper.getCompletedWorkout(workoutId);
+        expect(savedWorkout, isNotNull);
+        expect(savedWorkout!.exercises.first.name, 'Deadlift');
+      });
+
+      test('renameTemplate changes template name only', () async {
+        final templateId = await helper.insertTemplate(
+          WorkoutTemplate(
+            name: 'Original Title',
+            exercises: [
+              TemplateExercise(name: 'Pushup', sets: [TemplateSet(reps: 20, weight: 0.0)]),
+            ],
+          ),
+        );
+
+        await helper.renameTemplate(templateId, 'New Title');
+        final fetched = await helper.getTemplate(templateId);
+        expect(fetched!.name, 'New Title');
+        expect(fetched.exercises.first.name, 'Pushup');
+      });
+    });
+
+    // ── RPE Intensity Tracking on Completed Sets ────────────────────────
+    group('RPE tracking in completed sets', () {
+      test('insertCompletedWorkout and getCompletedWorkout persist RPE', () async {
+        SharedPreferences.setMockInitialValues({'weight_unit': 'kg'});
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-09-03T10:00:00.000'),
+          durationInSeconds: 1800,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Overhead Press',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 8, weight: 50000.0, rpe: 8),
+                CompletedSet(exerciseId: null, reps: 6, weight: 55000.0, rpe: 10),
+                CompletedSet(exerciseId: null, reps: 10, weight: 40000.0, rpe: null),
+              ],
+            ),
+          ],
+        );
+
+        final workoutId = await helper.insertCompletedWorkout(workout);
+        final fetched = await helper.getCompletedWorkout(workoutId);
+        expect(fetched, isNotNull);
+        expect(fetched!.exercises.first.sets[0].rpe, 8);
+        expect(fetched.exercises.first.sets[1].rpe, 10);
+        expect(fetched.exercises.first.sets[2].rpe, isNull);
+      });
+
+      test('updateCompletedWorkout preserves and updates RPE', () async {
+        SharedPreferences.setMockInitialValues({'weight_unit': 'kg'});
+        final workout = CompletedWorkout(
+          date: DateTime.parse('2026-09-04T10:00:00.000'),
+          durationInSeconds: 2400,
+          exercises: [
+            CompletedExercise(
+              workoutId: null,
+              name: 'Dips',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 12, weight: 0.0, rpe: 7),
+              ],
+            ),
+          ],
+        );
+
+        final workoutId = await helper.insertCompletedWorkout(workout);
+
+        final edited = CompletedWorkout(
+          id: workoutId,
+          date: DateTime.parse('2026-09-04T10:00:00.000'),
+          durationInSeconds: 2400,
+          exercises: [
+            CompletedExercise(
+              workoutId: workoutId,
+              name: 'Dips',
+              sets: [
+                CompletedSet(exerciseId: null, reps: 12, weight: 0.0, rpe: 9),
+              ],
+            ),
+          ],
+        );
+
+        await helper.updateCompletedWorkout(edited, ['Dips']);
+
+        final fetched = await helper.getCompletedWorkout(workoutId);
+        expect(fetched!.exercises.first.sets.first.rpe, 9);
+      });
+    });
   });
 }
+
 
