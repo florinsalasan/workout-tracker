@@ -6,6 +6,7 @@ import '../providers/exercise_provider.dart';
 import '../services/db_helpers.dart';
 import '../utils/fuzzy_match.dart';
 import 'package:intl/intl.dart';
+import 'exercise_motion_guide.dart';
 
 class ExerciseDetailsView extends StatefulWidget {
   final Exercise exercise;
@@ -283,8 +284,21 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
                 child: SegmentedButton<int>(
                   showSelectedIcon: false,
                   segments: const [
-                    ButtonSegment(value: 0, label: Text('Personal Bests')),
-                    ButtonSegment(value: 1, label: Text('History')),
+                    ButtonSegment(
+                      value: 0,
+                      label: Text('Guide'),
+                      icon: Icon(Icons.motion_photos_on_outlined),
+                    ),
+                    ButtonSegment(
+                      value: 1,
+                      label: Text('Personal Bests'),
+                      icon: Icon(Icons.emoji_events_outlined),
+                    ),
+                    ButtonSegment(
+                      value: 2,
+                      label: Text('History'),
+                      icon: Icon(Icons.history_outlined),
+                    ),
                   ],
                   selected: {_selectedIndex},
                   onSelectionChanged: (Set<int> newSelection) {
@@ -296,14 +310,196 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
               ),
             ),
             Expanded(
-              child: _selectedIndex == 0
-                  ? PBsAndRecordsTab(
-                      records: records, personalBests: personalBests)
-                  : PerformanceHistoryTab(history: exerciseHistory),
+              child: _buildSelectedTab(),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSelectedTab() {
+    switch (_selectedIndex) {
+      case 0:
+        return ExerciseGuideTab(
+          exerciseName: _currentName,
+          tags: _assignedTagNames,
+        );
+      case 1:
+        return PBsAndRecordsTab(
+          records: records,
+          personalBests: personalBests,
+        );
+      case 2:
+      default:
+        return PerformanceHistoryTab(history: exerciseHistory);
+    }
+  }
+}
+
+// ── Exercise Movement Guide Tab ──────────────────────────────────────────────
+
+class ExerciseGuideTab extends StatelessWidget {
+  final String exerciseName;
+  final List<String> tags;
+
+  const ExerciseGuideTab({
+    super.key,
+    required this.exerciseName,
+    required this.tags,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        ExerciseMotionGuide(
+          exerciseName: exerciseName,
+          height: 250,
+        ),
+        const SizedBox(height: 12),
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          elevation: 0,
+          color: isDark
+              ? theme.colorScheme.surfaceContainerHighest
+              : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 20, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Movement Execution',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildStepRow(
+                  context,
+                  '1. Setup',
+                  'Establish stable footing or bench positioning. Brace core, engage lats, and align joints for proper force transfer.',
+                ),
+                const Divider(height: 20),
+                _buildStepRow(
+                  context,
+                  '2. Movement',
+                  'Initiate the eccentric phase under control. Move smoothly through the full active range of motion to inflection.',
+                ),
+                const Divider(height: 20),
+                _buildStepRow(
+                  context,
+                  '3. Lockout',
+                  'Drive forcefully through the concentric phase to terminal lockout. Pause momentarily without hyperextending.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (tags.isNotEmpty)
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            elevation: 0,
+            color: isDark
+                ? theme.colorScheme.surfaceContainerHighest
+                : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.category_outlined,
+                          size: 20, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Target Muscles & Equipment',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: tags
+                        .map(
+                          (t) => Chip(
+                            label: Text(t),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: theme
+                                .colorScheme.secondaryContainer
+                                .withValues(alpha: 0.7),
+                            side: BorderSide.none,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStepRow(BuildContext context, String title, String description) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            description,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -685,7 +881,7 @@ class PerformanceHistoryTab extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
               elevation: 0,
               shape: RoundedRectangleBorder(
-                side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -736,7 +932,7 @@ class PBsAndRecordsTab extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -764,7 +960,7 @@ class PBsAndRecordsTab extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
