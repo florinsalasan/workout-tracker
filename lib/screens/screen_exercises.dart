@@ -4,6 +4,7 @@ import '../providers/exercise_provider.dart';
 import '../widgets/sliver_layout.dart';
 import '../widgets/exercise_details_view.dart';
 import '../services/db_helpers.dart';
+import '../services/exercise_visual_service.dart';
 import '../utils/fuzzy_match.dart';
 import '../widgets/alphabet_indexer.dart';
 
@@ -426,6 +427,7 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: ListTile(
+                                      leading: _buildExerciseThumbnail(exercise.name),
                                       title: Text(
                                         exercise.name,
                                         style: const TextStyle(
@@ -467,11 +469,11 @@ class ExercisesScreenState extends State<ExercisesScreen> {
                                       color: Theme.of(context)
                                           .colorScheme
                                           .primaryContainer
-                                          .withOpacity(0.95),
+                                          .withValues(alpha: 0.95),
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
+                                          color: Colors.black.withValues(alpha: 0.2),
                                           blurRadius: 8,
                                           spreadRadius: 2,
                                         ),
@@ -499,6 +501,31 @@ class ExercisesScreenState extends State<ExercisesScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildExerciseThumbnail(String exerciseName) {
+    final slug = ExerciseVisualService.instance.getSlugForExercise(exerciseName);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: slug != null
+          ? ExerciseVisualService.instance.buildFrameWidget(
+              slug: slug,
+              frameIndex: 1,
+              tintColor: isDark ? Colors.white : Colors.black87,
+            )
+          : Icon(
+              Icons.fitness_center_outlined,
+              size: 22,
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+            ),
     );
   }
 }

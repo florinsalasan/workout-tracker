@@ -5,10 +5,12 @@ import 'package:workout_tracker/providers/exercise_provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
 import 'package:workout_tracker/providers/workout_provider.dart';
 import 'services/db_helpers.dart';
+import 'services/exercise_visual_service.dart';
 import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ExerciseVisualService.instance.init();
   final dbHelper = DatabaseHelper.instance;
 
   final Database database = await dbHelper.database;
