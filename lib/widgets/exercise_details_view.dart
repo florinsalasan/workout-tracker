@@ -361,60 +361,8 @@ class ExerciseGuideTab extends StatelessWidget {
           exerciseName: exerciseName,
           height: 250,
         ),
-        const SizedBox(height: 12),
-        Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          elevation: 0,
-          color: isDark
-              ? theme.colorScheme.surfaceContainerHighest
-              : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 20, color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Movement Execution',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildStepRow(
-                  context,
-                  '1. Setup',
-                  'Establish stable footing or bench positioning. Brace core, engage lats, and align joints for proper force transfer.',
-                ),
-                const Divider(height: 20),
-                _buildStepRow(
-                  context,
-                  '2. Movement',
-                  'Initiate the eccentric phase under control. Move smoothly through the full active range of motion to inflection.',
-                ),
-                const Divider(height: 20),
-                _buildStepRow(
-                  context,
-                  '3. Lockout',
-                  'Drive forcefully through the concentric phase to terminal lockout. Pause momentarily without hyperextending.',
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (tags.isNotEmpty)
+        if (tags.isNotEmpty) ...[
+          const SizedBox(height: 12),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             elevation: 0,
@@ -466,39 +414,7 @@ class ExerciseGuideTab extends StatelessWidget {
               ),
             ),
           ),
-      ],
-    );
-  }
-
-  Widget _buildStepRow(BuildContext context, String title, String description) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            description,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
+        ],
       ],
     );
   }

@@ -27,9 +27,9 @@ void main() {
       );
 
       // Verify step pills exist
-      expect(find.text('1. Setup'), findsOneWidget);
-      expect(find.text('2. Movement'), findsOneWidget);
-      expect(find.text('3. Lockout'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
 
       // Verify initial playback speed pill
       expect(find.text('1.0x'), findsOneWidget);
@@ -50,8 +50,8 @@ void main() {
         ),
       );
 
-      // Tap on Lockout pill
-      await tester.tap(find.text('3. Lockout'));
+      // Tap on frame 3 pill
+      await tester.tap(find.text('3'));
       await tester.pump();
 
       // Loop should now be paused, so play icon is displayed

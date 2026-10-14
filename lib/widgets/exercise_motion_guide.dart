@@ -27,6 +27,11 @@ class _ExerciseMotionGuideState extends State<ExerciseMotionGuide> {
   double _playbackSpeed = 1.0; // 0.5x, 1.0x, 1.5x
   Timer? _loopTimer;
 
+  /// Base duration per frame in milliseconds at 1.0x speed.
+  /// Adjust this value to speed up or slow down the default animation speed:
+  /// e.g. 500 = fast (~2.0s/rep), 850 = moderate (~3.4s/rep), 1000 = slow (~4.0s/rep)
+  static const int _baseFrameDurationMs = 850;
+
   static const List<int> _frameSequence = [1, 2, 3, 2];
   int _sequenceIndex = 0;
 
@@ -57,7 +62,7 @@ class _ExerciseMotionGuideState extends State<ExerciseMotionGuide> {
 
   void _startLoop() {
     _loopTimer?.cancel();
-    final intervalMs = (500 / _playbackSpeed).round();
+    final intervalMs = (_baseFrameDurationMs / _playbackSpeed).round();
     _loopTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
       if (!mounted || !_isPlaying) return;
       setState(() {
@@ -239,11 +244,11 @@ class _ExerciseMotionGuideState extends State<ExerciseMotionGuide> {
             right: 12,
             child: Row(
               children: [
-                _buildFramePill(1, '1. Setup', isDark, theme),
+                _buildFramePill(1, '1', isDark, theme),
                 const SizedBox(width: 8),
-                _buildFramePill(2, '2. Movement', isDark, theme),
+                _buildFramePill(2, '2', isDark, theme),
                 const SizedBox(width: 8),
-                _buildFramePill(3, '3. Lockout', isDark, theme),
+                _buildFramePill(3, '3', isDark, theme),
               ],
             ),
           ),
