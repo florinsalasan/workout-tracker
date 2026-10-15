@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../widgets/sliver_layout.dart';
+import '../widgets/strong_import_dialog.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -76,6 +77,21 @@ class ProfileScreen extends StatelessWidget {
                       _buildWeightDisplay(context, userPreferences),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  _buildSettingsGroup(
+                    context,
+                    'Data & Migration',
+                    [
+                      ListTile(
+                        leading: const Icon(Icons.file_upload_outlined),
+                        title: const Text('Import from Strong'),
+                        subtitle: const Text('Import workouts, sets, and exercise history from Strong CSV'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => StrongImportDialog.show(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             );
