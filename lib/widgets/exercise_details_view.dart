@@ -1163,31 +1163,9 @@ class _PBsAndRecordsTabState extends State<PBsAndRecordsTab> {
                       color: theme.colorScheme.onSecondaryContainer,
                     ),
                   ),
-                  title: Row(
-                    children: [
-                      Text(
-                        milestone.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      if (delta != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            delta,
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  title: Text(
+                    milestone.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   subtitle: Text(
                     DateFormat('MMMM d, y').format(milestone.date),
@@ -1196,12 +1174,37 @@ class _PBsAndRecordsTabState extends State<PBsAndRecordsTab> {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  trailing: Text(
-                    milestone.formattedValue(weightUnit),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        milestone.formattedValue(weightUnit),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (delta != null) ...[
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            delta,
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 );
               },
