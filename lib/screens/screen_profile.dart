@@ -104,7 +104,7 @@ class ProfileScreen extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16.0),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(

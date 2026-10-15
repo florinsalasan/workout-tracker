@@ -254,7 +254,9 @@ class AnalyticsPreviewCard extends StatelessWidget {
             ...DisplayMode.values.map((mode) => RadioListTile<DisplayMode>(
                   title: Text(mode.label),
                   value: mode,
+                  // ignore: deprecated_member_use
                   groupValue: displayMode,
+                  // ignore: deprecated_member_use
                   onChanged: (selected) {
                     if (selected != null) {
                       Navigator.pop(sheetContext);

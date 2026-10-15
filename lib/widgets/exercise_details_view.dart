@@ -5,7 +5,10 @@ import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../providers/exercise_provider.dart';
 import '../services/db_helpers.dart';
 import '../utils/fuzzy_match.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../models/analytics_models.dart';
+import '../models/personal_best_milestone.dart';
 import 'exercise_motion_guide.dart';
 
 class ExerciseDetailsView extends StatefulWidget {
@@ -22,6 +25,7 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
   List<Map<String, dynamic>> exerciseHistory = [];
   Map<String, dynamic> personalBests = {};
   List<PersonalBest> records = [];
+  List<PersonalBestMilestone> milestones = [];
   bool isLoading = true;
   int _selectedIndex = 0;
 
@@ -50,6 +54,8 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
         await DatabaseHelper.instance.getExercisePersonalBests(exerciseId);
     final exerciseRecords =
         await DatabaseHelper.instance.getExerciseRecords(exerciseId);
+    final exerciseMilestones =
+        await DatabaseHelper.instance.getExerciseMilestones(exerciseId);
     final allTags = await provider.getAllTags();
     final assignedTags = await provider.getExerciseTags(exerciseId);
 
@@ -58,6 +64,7 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
       exerciseHistory = history;
       personalBests = pbs;
       records = exerciseRecords;
+      milestones = exerciseMilestones;
       _allTags = allTags;
       _assignedTagNames = assignedTags;
       isLoading = false;
@@ -65,10 +72,11 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
   }
 
   Future<void> _reloadTags() async {
+    final exerciseId = widget.exercise.id;
+    if (exerciseId == null) return;
     final provider = Provider.of<ExerciseProvider>(context, listen: false);
     final allTags = await provider.getAllTags();
-    final assignedTags =
-        await provider.getExerciseTags(widget.exercise.id!);
+    final assignedTags = await provider.getExerciseTags(exerciseId);
     if (!mounted) return;
     setState(() {
       _allTags = allTags;
@@ -327,8 +335,11 @@ class ExerciseDetailsViewState extends State<ExerciseDetailsView> {
         );
       case 1:
         return PBsAndRecordsTab(
+          exerciseId: widget.exercise.id,
+          exerciseName: _currentName,
           records: records,
           personalBests: personalBests,
+          milestones: milestones,
         );
       case 2:
       default:
@@ -823,86 +834,561 @@ class PerformanceHistoryTab extends StatelessWidget {
       });
 }
 
-class PBsAndRecordsTab extends StatelessWidget {
+class PBsAndRecordsTab extends StatefulWidget {
+  final int? exerciseId;
+  final String exerciseName;
   final List<PersonalBest> records;
   final Map<String, dynamic> personalBests;
+  final List<PersonalBestMilestone> milestones;
 
-  const PBsAndRecordsTab(
-      {super.key, required this.records, required this.personalBests});
+  const PBsAndRecordsTab({
+    super.key,
+    this.exerciseId,
+    required this.exerciseName,
+    required this.records,
+    required this.personalBests,
+    this.milestones = const [],
+  });
+
+  @override
+  State<PBsAndRecordsTab> createState() => _PBsAndRecordsTabState();
+}
+
+class _PBsAndRecordsTabState extends State<PBsAndRecordsTab> {
+  String _selectedMetric = '1rm'; // '1rm' or 'maxWeight'
+  String _selectedRange = 'all'; // '1m', '3m', 'all'
+  Future<List<ChartDataPoint>>? _chartFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChartData();
+  }
+
+  @override
+  void didUpdateWidget(PBsAndRecordsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.exerciseId != widget.exerciseId ||
+        oldWidget.records.length != widget.records.length) {
+      _loadChartData();
+    }
+  }
+
+  void _loadChartData() {
+    final id = widget.exerciseId;
+    if (id == null || id <= 0) {
+      setState(() {
+        _chartFuture = Future.value(<ChartDataPoint>[]);
+      });
+      return;
+    }
+    final unit = UserPreferences().weightUnit;
+    setState(() {
+      _chartFuture = DatabaseHelper.instance.getExerciseProgressionCurve(
+        id,
+        metric: _selectedMetric,
+        weightUnit: unit,
+      );
+    });
+  }
+
+  List<ChartDataPoint> _filterPoints(List<ChartDataPoint> all) {
+    if (_selectedRange == 'all') return all;
+    final cutoff = _selectedRange == '1m'
+        ? DateTime.now().subtract(const Duration(days: 30))
+        : DateTime.now().subtract(const Duration(days: 90));
+    return all.where((p) => p.date.isAfter(cutoff)).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bestTotal = personalBests['bestTotal'];
-    final heaviestWeight = personalBests['heaviestWeight'];
-
-    if (records.isEmpty) {
-      return const Center(child: Text('No records available'));
-    }
-
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final weightUnit = UserPreferences().weightUnit;
 
+    final bestTotal = widget.personalBests['bestTotal'];
+    final heaviestWeight = widget.personalBests['heaviestWeight'];
+
+    // Best 1RM calculation
+    double? best1RMGrams;
+    if (widget.milestones.isNotEmpty) {
+      final oneRmMilestones = widget.milestones
+          .where((m) => m.type == MilestoneType.estimated1RM)
+          .toList();
+      if (oneRmMilestones.isNotEmpty) {
+        best1RMGrams = oneRmMilestones
+            .map((m) => m.achievedValueGrams)
+            .reduce((a, b) => a > b ? a : b);
+      }
+    }
+    if (best1RMGrams == null && widget.records.isNotEmpty) {
+      best1RMGrams = widget.records
+          .map((r) => PersonalBestMilestone.calculate1RM(r.weight, r.reps))
+          .reduce((a, b) => a > b ? a : b);
+    }
+
+    if (widget.records.isEmpty && widget.milestones.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.emoji_events_outlined,
+                  size: 48, color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text(
+                'No records available yet',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Log workouts with this exercise to unlock your personal bests, progression curves, and milestone history.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView(
+      padding: const EdgeInsets.only(bottom: 32),
       children: [
+        // ── Strength Progression Chart Card ──
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          elevation: 0,
+          color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Strength Progression',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    // Metric selector (1RM vs Max Weight)
+                    SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      segments: const [
+                        ButtonSegment(value: '1rm', label: Text('1RM', style: TextStyle(fontSize: 11))),
+                        ButtonSegment(value: 'maxWeight', label: Text('Max Wt', style: TextStyle(fontSize: 11))),
+                      ],
+                      selected: {_selectedMetric},
+                      onSelectionChanged: (set) {
+                        setState(() {
+                          _selectedMetric = set.first;
+                          _loadChartData();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Time range chips
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildRangeChip('1M', '1m', theme),
+                    const SizedBox(width: 6),
+                    _buildRangeChip('3M', '3m', theme),
+                    const SizedBox(width: 6),
+                    _buildRangeChip('All', 'all', theme),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Future Chart Body
+                FutureBuilder<List<ChartDataPoint>>(
+                  future: _chartFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(
+                        height: 180,
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    final allPoints = snapshot.data ?? [];
+                    final filtered = _filterPoints(allPoints);
+
+                    if (filtered.isEmpty) {
+                      return SizedBox(
+                        height: 180,
+                        child: Center(
+                          child: Text(
+                            'No data for this time period',
+                            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (filtered.length == 1) {
+                      final point = filtered.first;
+                      return Container(
+                        height: 120,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${point.value.toStringAsFixed(1)} $weightUnit',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.secondary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('MMMM d, y').format(point.date),
+                              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Log more sessions to reveal your progression curve',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SizedBox(
+                      height: 190,
+                      child: _buildProgressionChart(context, filtered, weightUnit, theme),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Overall Records Card (including Estimated 1RM) ──
         _buildSectionHeader(context, 'Overall Records'),
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           elevation: 0,
+          color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
           shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             children: [
-              if (bestTotal != null)
+              if (best1RMGrams != null)
                 ListTile(
-                  title: const Text('Best Total (Weight x Reps):'),
+                  leading: Icon(Icons.bolt, color: theme.colorScheme.secondary),
+                  title: const Text('Estimated 1RM (Epley):'),
+                  subtitle: const Text('Peak calculated single-rep maximum', style: TextStyle(fontSize: 11)),
                   trailing: Text(
-                      '${WeightConverter.convertFromGrams(bestTotal['total'].round(), weightUnit).toStringAsFixed(1)} $weightUnit',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                    '${WeightConverter.convertFromGrams(best1RMGrams.round(), weightUnit).toStringAsFixed(1)} $weightUnit',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
-              if (heaviestWeight != null)
+              if (heaviestWeight != null) ...[
+                if (best1RMGrams != null) const Divider(height: 1),
                 ListTile(
-                  title: const Text('Heaviest Weight:'),
+                  leading: Icon(Icons.fitness_center, color: theme.colorScheme.primary),
+                  title: const Text('Heaviest Weight Lifted:'),
                   trailing: Text(
-                      '${WeightConverter.convertFromGrams(heaviestWeight['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                    '${WeightConverter.convertFromGrams(heaviestWeight['weight'].round(), weightUnit).toStringAsFixed(1)} $weightUnit',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
+              ],
+              if (bestTotal != null) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(Icons.stacked_line_chart, color: theme.colorScheme.primary),
+                  title: const Text('Best Total (Weight × Reps):'),
+                  trailing: Text(
+                    '${WeightConverter.convertFromGrams(bestTotal['total'].round(), weightUnit).toStringAsFixed(1)} $weightUnit',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        _buildSectionHeader(context, 'Personal Bests by Reps'),
-        Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-            borderRadius: BorderRadius.circular(12),
+
+        // ── Milestone History Timeline Card ──
+        if (widget.milestones.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildSectionHeader(context, 'Milestone History (${widget.milestones.length})'),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            elevation: 0,
+            color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.milestones.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final milestone = widget.milestones[index];
+                final delta = milestone.formattedDelta(weightUnit);
+
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.emoji_events,
+                      size: 20,
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  title: Text(
+                    milestone.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    DateFormat('MMMM d, y').format(milestone.date),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        milestone.formattedValue(weightUnit),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (delta != null) ...[
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            delta,
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-          child: Column(
-            children: records.map((record) {
-              return ListTile(
-                title: records.first != record
-                    ? Text('${record.reps} reps:')
-                    : Text('${record.reps} rep:'),
-                trailing: Text(
+        ],
+
+        // ── Personal Bests by Reps Card ──
+        if (widget.records.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildSectionHeader(context, 'Personal Bests by Reps'),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            elevation: 0,
+            color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: widget.records.map((record) {
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    '${record.reps} ${record.reps == 1 ? 'rep' : 'reps'}:',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  trailing: Text(
                     '${WeightConverter.convertFromGrams(record.weight.round(), weightUnit).toStringAsFixed(1)} $weightUnit',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-              );
-            }).toList(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-        )
+        ],
       ],
+    );
+  }
+
+  Widget _buildRangeChip(String label, String value, ThemeData theme) {
+    final isSelected = _selectedRange == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRange = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressionChart(
+    BuildContext context,
+    List<ChartDataPoint> points,
+    String unit,
+    ThemeData theme,
+  ) {
+    final spots = points.asMap().entries.map((e) {
+      return FlSpot(e.key.toDouble(), e.value.value);
+    }).toList();
+
+    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
+    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final yPad = (maxY - minY) == 0 ? 5.0 : (maxY - minY) * 0.15;
+    final primaryColor = theme.colorScheme.secondary;
+
+    return LineChart(
+      LineChartData(
+        minY: (minY - yPad).clamp(0.0, double.infinity),
+        maxY: maxY + yPad,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: yPad == 0 ? 1 : (maxY - minY + 2 * yPad) / 3,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: theme.dividerColor.withValues(alpha: 0.3),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 42,
+              getTitlesWidget: (val, meta) {
+                if (val == meta.min || val == meta.max) return const SizedBox.shrink();
+                return Text(
+                  val.toStringAsFixed(0),
+                  style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              getTitlesWidget: (val, meta) {
+                final idx = val.round();
+                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                // Show first, last, and middle dates
+                if (idx == 0 || idx == points.length - 1 || idx == (points.length ~/ 2)) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      DateFormat('MMM d').format(points[idx].date),
+                      style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final idx = spot.spotIndex;
+                final point = points[idx];
+                final dateStr = DateFormat('MMM d, y').format(point.date);
+                return LineTooltipItem(
+                  '${spot.y.toStringAsFixed(1)} $unit\n$dateStr',
+                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                );
+              }).toList();
+            },
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.25,
+            color: primaryColor,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 3.5,
+                  color: primaryColor,
+                  strokeWidth: 1.5,
+                  strokeColor: Colors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: primaryColor.withValues(alpha: 0.12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.bold,
           color: Theme.of(context).colorScheme.primary,
         ),

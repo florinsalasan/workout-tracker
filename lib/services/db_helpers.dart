@@ -5,6 +5,8 @@ import 'package:path/path.dart';
 import 'package:workout_tracker/providers/user_preferences_provider.dart';
 import 'package:workout_tracker/services/mass_unit_conversions.dart';
 import '../data/default_exercises.dart';
+import '../models/analytics_models.dart';
+import '../models/personal_best_milestone.dart';
 import '../models/workout_model.dart';
 import '../models/workout_template_model.dart';
 
@@ -816,7 +818,7 @@ class DatabaseHelper {
 
         if (baseExerciseResult.isEmpty) {
           // TODO: Handle error since this is dumb atm, continuing doesn't make sense
-          print('Warning: no base exercise found for $exerciseName');
+          debugPrint('Warning: no base exercise found for $exerciseName');
           continue;
         }
 
@@ -1258,6 +1260,166 @@ class DatabaseHelper {
       }
     }
     return map;
+  }
+
+  /// Extracts the historical milestone progression of broken personal bests
+  /// for [exerciseId], ordered by date descending (newest PRs first).
+  Future<List<PersonalBestMilestone>> getExerciseMilestones(int exerciseId) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        cw.id     AS workout_id,
+        cw.date   AS date,
+        cs.reps   AS reps,
+        cs.weight AS weight
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+      WHERE ce.name = (SELECT name FROM exercises WHERE id = ?)
+      ORDER BY cw.date ASC, cs.id ASC
+    ''', [exerciseId]);
+
+    if (rows.isEmpty) return [];
+
+    final milestones = <PersonalBestMilestone>[];
+
+    // Tracking variables for chronological bests
+    double maxWeightEver = 0.0;
+    double max1RMEver = 0.0;
+    final bestByReps = <int, double>{};
+
+    for (final row in rows) {
+      final dateStr = row['date'] as String?;
+      if (dateStr == null) continue;
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) continue;
+
+      final workoutId = row['workout_id'] as int?;
+      final reps = row['reps'] as int? ?? 0;
+      final weight = (row['weight'] as num?)?.toDouble() ?? 0.0;
+
+      if (reps <= 0 || weight <= 0) continue;
+
+      // 1. Check Heaviest Weight
+      if (weight > maxWeightEver) {
+        milestones.add(PersonalBestMilestone(
+          date: date,
+          workoutId: workoutId,
+          type: MilestoneType.heaviestWeight,
+          reps: reps,
+          weightGrams: weight,
+          achievedValueGrams: weight,
+          previousValueGrams: maxWeightEver > 0 ? maxWeightEver : null,
+        ));
+        maxWeightEver = weight;
+      }
+
+      // 2. Check Estimated 1RM
+      final e1rm = PersonalBestMilestone.calculate1RM(weight, reps);
+      if (e1rm > max1RMEver) {
+        milestones.add(PersonalBestMilestone(
+          date: date,
+          workoutId: workoutId,
+          type: MilestoneType.estimated1RM,
+          reps: reps,
+          weightGrams: weight,
+          achievedValueGrams: e1rm,
+          previousValueGrams: max1RMEver > 0 ? max1RMEver : null,
+        ));
+        max1RMEver = e1rm;
+      }
+
+      // 3. Check Rep-Specific PR (e.g. 1..20 reps)
+      if (reps >= 1 && reps <= 20) {
+        final prevBest = bestByReps[reps] ?? 0.0;
+        if (weight > prevBest) {
+          milestones.add(PersonalBestMilestone(
+            date: date,
+            workoutId: workoutId,
+            type: MilestoneType.repRecord,
+            reps: reps,
+            weightGrams: weight,
+            achievedValueGrams: weight,
+            previousValueGrams: prevBest > 0 ? prevBest : null,
+          ));
+          bestByReps[reps] = weight;
+        }
+      }
+    }
+
+    // Sort newest milestones first
+    milestones.sort((a, b) => b.date.compareTo(a.date));
+    return milestones;
+  }
+
+  /// Returns date-ordered data points for progression charting of [exerciseId].
+  /// [metric] can be '1rm' (Estimated 1RM) or 'maxWeight' (Heaviest Weight).
+  Future<List<ChartDataPoint>> getExerciseProgressionCurve(
+    int exerciseId, {
+    String metric = '1rm',
+    required String weightUnit,
+  }) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        cw.date   AS date,
+        cs.reps   AS reps,
+        cs.weight AS weight
+      FROM completed_sets cs
+      JOIN completed_exercises ce ON cs.exercise_id = ce.id
+      JOIN completed_workouts cw  ON ce.workout_id  = cw.id
+      WHERE ce.name = (SELECT name FROM exercises WHERE id = ?)
+      ORDER BY cw.date ASC, cs.id ASC
+    ''', [exerciseId]);
+
+    if (rows.isEmpty) return [];
+
+    // Group by workout date (peak value per day)
+    final datePeaks = <String, double>{};
+    final dateDetails = <String, String>{};
+
+    for (final row in rows) {
+      final dateStr = row['date'] as String?;
+      if (dateStr == null) continue;
+      final reps = row['reps'] as int? ?? 0;
+      final weightGrams = (row['weight'] as num?)?.toDouble() ?? 0.0;
+      if (reps <= 0 || weightGrams <= 0) continue;
+
+      double valGrams;
+      String label;
+      final displayWeight = WeightConverter.convertFromGrams(weightGrams.round(), weightUnit);
+
+      if (metric == '1rm') {
+        valGrams = PersonalBestMilestone.calculate1RM(weightGrams, reps);
+        final display1RM = WeightConverter.convertFromGrams(valGrams.round(), weightUnit);
+        label = '${display1RM.toStringAsFixed(1)} $weightUnit (1RM est. from ${displayWeight.toStringAsFixed(1)} $weightUnit × $reps)';
+      } else {
+        valGrams = weightGrams;
+        label = '${displayWeight.toStringAsFixed(1)} $weightUnit × $reps reps';
+      }
+
+      final displayVal = WeightConverter.convertFromGrams(valGrams.round(), weightUnit);
+      final currentPeak = datePeaks[dateStr] ?? 0.0;
+      if (displayVal > currentPeak) {
+        datePeaks[dateStr] = displayVal;
+        dateDetails[dateStr] = label;
+      }
+    }
+
+    final points = <ChartDataPoint>[];
+    for (final entry in datePeaks.entries) {
+      final date = DateTime.tryParse(entry.key);
+      if (date != null) {
+        points.add(ChartDataPoint(
+          date: date,
+          value: entry.value,
+          label: dateDetails[entry.key],
+        ));
+      }
+    }
+
+    points.sort((a, b) => a.date.compareTo(b.date));
+    return points;
   }
 }
 

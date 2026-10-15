@@ -477,7 +477,7 @@ class _TrackerPickerDialogState extends State<_TrackerPickerDialog> {
                   alreadyAdded: _isTracked(
                       _TrackedChart.bodyWeightName, _TrackedChart.bodyWeight),
                   onTap: () => Navigator.of(context).pop(
-                    _TrackedChart(
+                    const _TrackedChart(
                       exerciseName: _TrackedChart.bodyWeightName,
                       chartType: _TrackedChart.bodyWeight,
                     ),
