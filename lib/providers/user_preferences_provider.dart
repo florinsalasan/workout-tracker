@@ -8,6 +8,7 @@ class UserPreferences extends ChangeNotifier {
   static const String _heightCmKey = 'height_cm'; 
   static const String _weightGKey = 'weight_g'; // Using grams to match DB
   static const String _intensityModeKey = 'intensity_mode'; // 'none', 'rpe', 'rir'
+  static const String _historyViewModeKey = 'history_view_mode'; // 'list', 'calendar'
   
   static final UserPreferences _instance = UserPreferences._internal();
 
@@ -23,6 +24,7 @@ class UserPreferences extends ChangeNotifier {
   String _weightUnit = 'lbs';
   String _heightUnit = 'cm';
   String _intensityMode = 'none'; // 'none', 'rpe', 'rir'
+  String _historyViewMode = 'list'; // 'list', 'calendar'
   
   // Base Units (Stored as integers for weight to match DB!)
   double _baseHeightCm = 0.0;
@@ -31,6 +33,7 @@ class UserPreferences extends ChangeNotifier {
   String get weightUnit => _weightUnit;
   String get heightUnit => _heightUnit;
   String get intensityMode => _intensityMode;
+  String get historyViewMode => _historyViewMode;
   
   // Raw getters if needed for analytics elsewhere
   double get rawHeightCm => _baseHeightCm;
@@ -68,6 +71,7 @@ class UserPreferences extends ChangeNotifier {
     _weightUnit = _prefs.getString(_weightUnitKey) ?? 'lbs';
     _heightUnit = _prefs.getString(_heightUnitKey) ?? 'cm';
     _intensityMode = _prefs.getString(_intensityModeKey) ?? 'none';
+    _historyViewMode = _prefs.getString(_historyViewModeKey) ?? 'list';
     _baseHeightCm = _prefs.getDouble(_heightCmKey) ?? 0.0;
     _baseWeightGrams = _prefs.getInt(_weightGKey) ?? 0; 
     notifyListeners();
@@ -94,6 +98,14 @@ class UserPreferences extends ChangeNotifier {
     if (_intensityMode != mode) {
       _intensityMode = mode;
       await _prefs.setString(_intensityModeKey, mode);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setHistoryViewMode(String mode) async {
+    if (_historyViewMode != mode) {
+      _historyViewMode = mode;
+      await _prefs.setString(_historyViewModeKey, mode);
       notifyListeners();
     }
   }

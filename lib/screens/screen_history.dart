@@ -1,38 +1,168 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:workout_tracker/providers/history_provider.dart';
+import 'package:workout_tracker/providers/user_preferences_provider.dart';
+import 'package:workout_tracker/widgets/workout_calendar_view.dart';
 import 'package:workout_tracker/widgets/workout_details_view.dart';
 import 'package:workout_tracker/widgets/workout_preview.dart';
 import '../widgets/sliver_layout.dart';
 import '../models/workout_model.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  bool _isCalendarView = false;
+  DateTime? _filterDate;
+  Future<List<CompletedWorkout>>? _workoutsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefMode = UserPreferences().historyViewMode;
+    _isCalendarView = prefMode == 'calendar';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _refreshWorkouts();
+  }
+
+  void _refreshWorkouts() {
+    _workoutsFuture = Provider.of<HistoryProvider>(context, listen: false).getCompletedWorkouts();
+  }
+
+  void _toggleViewMode() {
+    setState(() {
+      _isCalendarView = !_isCalendarView;
+    });
+    UserPreferences().setHistoryViewMode(_isCalendarView ? 'calendar' : 'list');
+  }
+
+  void _clearFilter() {
+    setState(() {
+      _filterDate = null;
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
   @override
   Widget build(BuildContext context) {
     return CustomLayout(
       title: 'History',
+      actions: [
+        IconButton(
+          icon: Icon(_isCalendarView
+              ? Icons.view_agenda_outlined
+              : Icons.calendar_month_outlined),
+          tooltip: _isCalendarView ? 'Switch to list view' : 'Switch to calendar view',
+          onPressed: _toggleViewMode,
+        ),
+      ],
       body: Consumer<HistoryProvider>(
         builder: (context, historyProvider, child) {
           return FutureBuilder<List<CompletedWorkout>>(
-            future: historyProvider.getCompletedWorkouts(),
+            future: _workoutsFuture,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No workouts found'));
-              } else {
-                return ListView.builder(
-                  itemCount: snapshot.data!.length,
-                  itemBuilder: (context, index) {
-                    final workout = snapshot.data![index];
-                    return _buildWorkoutItem(context, workout);
+              }
+
+              final allWorkouts = snapshot.data!;
+
+              if (_isCalendarView) {
+                return WorkoutCalendarView(
+                  workouts: allWorkouts,
+                  onWorkoutTap: (workout) => _showWorkoutDetails(context, workout),
+                  onWorkoutDelete: (workout) async {
+                    await historyProvider.deleteCompletedWorkout(workout.id!);
+                    setState(() {
+                      _refreshWorkouts();
+                    });
+                  },
+                  onJumpToList: (date) {
+                    setState(() {
+                      _isCalendarView = false;
+                      _filterDate = DateTime(date.year, date.month, date.day);
+                    });
+                    UserPreferences().setHistoryViewMode('list');
                   },
                 );
               }
+
+              // List View with optional date filter
+              final displayedWorkouts = _filterDate == null
+                  ? allWorkouts
+                  : allWorkouts.where((w) => _isSameDay(w.date, _filterDate!)).toList();
+
+              return Column(
+                children: [
+                  if (_filterDate != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.filter_alt_outlined,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Showing ${DateFormat('MMM d, y').format(_filterDate!)} (${displayedWorkouts.length})',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _clearFilter,
+                            child: const Text('Show All'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (displayedWorkouts.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('No workouts on this date'),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _clearFilter,
+                              child: const Text('View All Workouts'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: displayedWorkouts.length,
+                        itemBuilder: (context, index) {
+                          final workout = displayedWorkouts[index];
+                          return _buildWorkoutItem(context, workout);
+                        },
+                      ),
+                    ),
+                ],
+              );
             },
           );
         },
@@ -83,9 +213,12 @@ class HistoryScreen extends StatelessWidget {
           ),
         );
       },
-      onDismissed: (direction) {
-        Provider.of<HistoryProvider>(context, listen: false)
+      onDismissed: (direction) async {
+        await Provider.of<HistoryProvider>(context, listen: false)
             .deleteCompletedWorkout(workout.id!);
+        setState(() {
+          _refreshWorkouts();
+        });
       },
       child: WorkoutPreview(
         workout: workout,
@@ -94,11 +227,17 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  void _showWorkoutDetails(BuildContext context, CompletedWorkout workout) {
-    Navigator.of(context).push(
+  void _showWorkoutDetails(BuildContext context, CompletedWorkout workout) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => WorkoutDetailsView(workout: workout),
       ),
     );
+    // Refresh workouts upon returning in case edits occurred
+    if (mounted) {
+      setState(() {
+        _refreshWorkouts();
+      });
+    }
   }
 }

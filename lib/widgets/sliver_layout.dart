@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 class CustomLayout extends StatelessWidget {
   final String title;
   final Widget body;
+  final List<Widget>? actions;
 
-  const CustomLayout({super.key, required this.title, required this.body});
+  const CustomLayout({
+    super.key,
+    required this.title,
+    required this.body,
+    this.actions,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -13,8 +19,7 @@ class CustomLayout extends StatelessWidget {
         slivers: <Widget>[
           SliverAppBar.large(
             title: Text(title),
-            // Optional: You can add properties here like floating: true, pinned: true,
-            // or even background colors if you want to customize the header further.
+            actions: actions,
           ),
           SliverFillRemaining(
             hasScrollBody: true,
