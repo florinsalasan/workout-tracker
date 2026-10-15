@@ -113,7 +113,7 @@ class WorkoutState extends ChangeNotifier {
       final dbHelper = DatabaseHelper.instance;
       late int workoutId;
 
-      if (_isTemplateCreation) {
+      if (_isTemplateCreation && context.mounted) {
         final templateName = await _showTemplateNameDialog(context);
         if (templateName != null) {
           workoutId = await dbHelper.insertCompletedWorkout(completedWorkout,
