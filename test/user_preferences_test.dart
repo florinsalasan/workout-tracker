@@ -68,5 +68,24 @@ void main() {
       await prefs.setHeightUnit('ft');
       expect(prefs.displayHeight, closeTo(70.866, 0.1));
     });
+
+    test('historyViewMode defaults to list and updates via setHistoryViewMode', () async {
+      final prefs = UserPreferences();
+      expect(prefs.historyViewMode, 'list');
+
+      bool notified = false;
+      prefs.addListener(() {
+        notified = true;
+      });
+
+      await prefs.setHistoryViewMode('calendar');
+      expect(prefs.historyViewMode, 'calendar');
+      expect(notified, isTrue);
+
+      // Setting same value doesn't notify
+      notified = false;
+      await prefs.setHistoryViewMode('calendar');
+      expect(notified, isFalse);
+    });
   });
 }
