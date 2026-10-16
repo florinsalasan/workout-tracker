@@ -49,6 +49,10 @@ class HistoryProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void refreshHistory() {
+    notifyListeners();
+  }
+
   Future<void> deleteCompletedWorkout(int id) async {
     await _dbHelper.deleteCompletedWorkout(id);
     notifyListeners();
