@@ -159,6 +159,8 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
 
   void _updateWorkoutState() {
     final workoutState = context.read<WorkoutState>();
+    final currentSet =
+        workoutState.getSet(widget.exerciseIndex, widget.setIndex);
     final currentWeight = double.tryParse(_weightController.text) ?? 0;
     final weightInGrams = WeightConverter.convertToGrams(
             currentWeight, _userPreferences.weightUnit)
@@ -168,7 +170,7 @@ class SetTrackingWidgetState extends State<SetTrackingWidget> {
       widget.setIndex,
       weightInGrams,
       int.tryParse(_repsController.text) ?? 0,
-      widget.isCompleted,
+      currentSet.isCompleted,
       rpe: _parseEnteredRpe(),
     );
   }

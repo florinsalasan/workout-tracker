@@ -20,6 +20,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _isCalendarView = false;
   DateTime? _filterDate;
   Future<List<CompletedWorkout>>? _workoutsFuture;
+  HistoryProvider? _historyProvider;
+  int _lastHistoryVersion = -1;
 
   @override
   void initState() {
@@ -31,11 +33,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _refreshWorkouts();
+    final provider = Provider.of<HistoryProvider>(context, listen: false);
+    if (_historyProvider != provider) {
+      _historyProvider?.removeListener(_onHistoryChanged);
+      _historyProvider = provider;
+      _historyProvider!.addListener(_onHistoryChanged);
+      _refreshWorkouts();
+    }
+  }
+
+  @override
+  void dispose() {
+    _historyProvider?.removeListener(_onHistoryChanged);
+    super.dispose();
+  }
+
+  void _onHistoryChanged() {
+    final provider = _historyProvider;
+    if (mounted &&
+        provider != null &&
+        _lastHistoryVersion != provider.historyVersion) {
+      setState(() {
+        _refreshWorkouts();
+      });
+    }
   }
 
   void _refreshWorkouts() {
-    _workoutsFuture = Provider.of<HistoryProvider>(context, listen: false).getCompletedWorkouts();
+    final provider =
+        _historyProvider ?? Provider.of<HistoryProvider>(context, listen: false);
+    _lastHistoryVersion = provider.historyVersion;
+    _workoutsFuture = provider.getCompletedWorkouts();
   }
 
   void _toggleViewMode() {
@@ -70,6 +98,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ],
       body: Consumer<HistoryProvider>(
         builder: (context, historyProvider, child) {
+          if (_workoutsFuture == null ||
+              _lastHistoryVersion != historyProvider.historyVersion) {
+            _lastHistoryVersion = historyProvider.historyVersion;
+            _workoutsFuture = historyProvider.getCompletedWorkouts();
+          }
           return FutureBuilder<List<CompletedWorkout>>(
             future: _workoutsFuture,
             builder: (context, snapshot) {

@@ -7,9 +7,11 @@ class HistoryProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   List<Map<String, dynamic>> _templates = [];
   List<WorkoutTemplate> _workoutTemplates = [];
+  int _historyVersion = 0;
 
   List<Map<String, dynamic>> get templates => _templates;
   List<WorkoutTemplate> get workoutTemplates => _workoutTemplates;
+  int get historyVersion => _historyVersion;
 
   Future<void> loadTemplates() async {
     _templates = await _dbHelper.getWorkoutTemplates();
@@ -45,16 +47,18 @@ class HistoryProvider with ChangeNotifier {
   }
 
   Future<void> addCompletedWorkout(CompletedWorkout workout) async {
-    // await _dbHelper.insertCompletedWorkout(workout);
+    _historyVersion++;
     notifyListeners();
   }
 
   void refreshHistory() {
+    _historyVersion++;
     notifyListeners();
   }
 
   Future<void> deleteCompletedWorkout(int id) async {
     await _dbHelper.deleteCompletedWorkout(id);
+    _historyVersion++;
     notifyListeners();
   }
 
@@ -63,6 +67,7 @@ class HistoryProvider with ChangeNotifier {
     List<String> originalExerciseNames,
   ) async {
     await _dbHelper.updateCompletedWorkout(workout, originalExerciseNames);
+    _historyVersion++;
     notifyListeners();
   }
 }

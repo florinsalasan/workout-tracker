@@ -34,9 +34,30 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
     final db = await openDatabase(path,
-        version: 4, onCreate: _createDB, onUpgrade: _onUpgrade);
+        version: 5, onCreate: _createDB, onUpgrade: _onUpgrade);
     await seedDefaultExercisesAndTags(db);
     return db;
+  }
+
+  static Future<void> createIndexes(Database db) async {
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_completed_workouts_date ON completed_workouts (date DESC)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_completed_exercises_workout_id ON completed_exercises (workout_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_completed_exercises_name ON completed_exercises (name)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_completed_sets_exercise_id ON completed_sets (exercise_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_template_exercises_template_id ON template_exercises (template_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_template_sets_exercise_id ON template_sets (template_exercise_id)',
+    );
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -126,6 +147,9 @@ class DatabaseHelper {
           }
         }
       } catch (_) {}
+    }
+    if (oldVersion < 5) {
+      await createIndexes(db);
     }
   }
 
@@ -248,6 +272,7 @@ class DatabaseHelper {
     )
     ''');
 
+    await createIndexes(db);
     await seedDefaultExercisesAndTags(db);
   }
 
@@ -375,28 +400,45 @@ class DatabaseHelper {
       'completed_exercises',
       where: 'workout_id = ?',
       whereArgs: [id],
+      orderBy: 'id ASC',
     );
 
-    workout.exercises = await Future.wait(exerciseMaps.map((exerciseMap) async {
+    if (exerciseMaps.isEmpty) {
+      workout.exercises = [];
+      return workout;
+    }
+
+    final exerciseIds = exerciseMaps.map((m) => m['id'] as int).toList();
+    final placeholders = List.filled(exerciseIds.length, '?').join(',');
+    final setMaps = await db.query(
+      'completed_sets',
+      where: 'exercise_id IN ($placeholders)',
+      whereArgs: exerciseIds,
+      orderBy: 'id ASC',
+    );
+
+    final setsByExerciseId = <int, List<CompletedSet>>{};
+    for (final setMap in setMaps) {
+      final exId = setMap['exercise_id'] as int;
+      final weightInGrams = (setMap['weight'] as num).round();
+      final convertedWeight =
+          WeightConverter.convertFromGrams(weightInGrams, weightUnit);
+      setsByExerciseId.putIfAbsent(exId, () => []).add(
+            CompletedSet(
+              id: setMap['id'] as int?,
+              exerciseId: exId,
+              reps: setMap['reps'] as int,
+              weight: convertedWeight,
+              rpe: setMap['rpe'] as int?,
+            ),
+          );
+    }
+
+    workout.exercises = exerciseMaps.map((exerciseMap) {
       final exercise = CompletedExercise.fromMap(exerciseMap);
-      final setMaps = await db.query(
-        'completed_sets',
-        where: 'exercise_id = ?',
-        whereArgs: [exercise.id],
-      );
-      exercise.sets = setMaps.map((setMap) {
-        final weightInGrams = (setMap['weight'] as num).round();
-        final convertedWeight =
-            WeightConverter.convertFromGrams(weightInGrams, weightUnit);
-        return CompletedSet(
-          exerciseId: setMap['exercise_id'] as int?,
-          reps: setMap['reps'] as int,
-          weight: convertedWeight,
-          rpe: setMap['rpe'] as int?,
-        );
-      }).toList();
+      exercise.sets = setsByExerciseId[exercise.id] ?? [];
       return exercise;
-    }));
+    }).toList();
 
     return workout;
   }
@@ -404,31 +446,34 @@ class DatabaseHelper {
   Future<List<CompletedWorkout>> getAllCompletedWorkouts() async {
     final db = await database;
     final workoutMaps =
-        await db.query('completed_workouts', orderBy: 'date DESC');
+        await db.query('completed_workouts', orderBy: 'date DESC, id DESC');
+    if (workoutMaps.isEmpty) return [];
 
-    return Future.wait(workoutMaps.map((workoutMap) async {
+    final exerciseMaps =
+        await db.query('completed_exercises', orderBy: 'id ASC');
+    final setMaps = await db.query('completed_sets', orderBy: 'id ASC');
+
+    final setsByExerciseId = <int, List<CompletedSet>>{};
+    for (final setMap in setMaps) {
+      final exId = setMap['exercise_id'] as int;
+      setsByExerciseId
+          .putIfAbsent(exId, () => [])
+          .add(CompletedSet.fromMap(setMap));
+    }
+
+    final exercisesByWorkoutId = <int, List<CompletedExercise>>{};
+    for (final exerciseMap in exerciseMaps) {
+      final workoutId = exerciseMap['workout_id'] as int;
+      final exercise = CompletedExercise.fromMap(exerciseMap);
+      exercise.sets = setsByExerciseId[exercise.id] ?? [];
+      exercisesByWorkoutId.putIfAbsent(workoutId, () => []).add(exercise);
+    }
+
+    return workoutMaps.map((workoutMap) {
       final workout = CompletedWorkout.fromMap(workoutMap);
-      final exerciseMaps = await db.query(
-        'completed_exercises',
-        where: 'workout_id = ?',
-        whereArgs: [workout.id],
-      );
-
-      workout.exercises =
-          await Future.wait(exerciseMaps.map((exerciseMap) async {
-        final exercise = CompletedExercise.fromMap(exerciseMap);
-        final setMaps = await db.query(
-          'completed_sets',
-          where: 'exercise_id = ?',
-          whereArgs: [exercise.id],
-        );
-        exercise.sets =
-            setMaps.map((setMap) => CompletedSet.fromMap(setMap)).toList();
-        return exercise;
-      }));
-
+      workout.exercises = exercisesByWorkoutId[workout.id] ?? [];
       return workout;
-    }));
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> getWorkoutTemplates() async {

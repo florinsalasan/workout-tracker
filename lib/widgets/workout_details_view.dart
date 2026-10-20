@@ -130,7 +130,16 @@ class _WorkoutDetailsViewState extends State<WorkoutDetailsView> {
               ),
             ),
             const SizedBox(height: 8),
-            ...exercise.sets.map((set) => _buildSetItem(set)),
+            if (exercise.sets.isEmpty)
+              Text(
+                'No sets recorded',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+            else
+              ...exercise.sets.map((set) => _buildSetItem(set)),
           ],
         ),
       ),
