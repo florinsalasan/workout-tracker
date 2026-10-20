@@ -7,6 +7,7 @@ import '../models/workout_template_model.dart';
 import '../providers/history_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../services/db_helpers.dart';
+import '../services/health_connect_service.dart';
 import '../services/mass_unit_conversions.dart';
 import 'package:workout_tracker/widgets/single_set_tracking.dart';
 
@@ -154,14 +155,20 @@ class WorkoutState extends ChangeNotifier {
 
       await dbHelper.checkAndUpdatePersonalBests(workoutId);
 
+      if (_userPreferences.healthConnectEnabled &&
+          _userPreferences.healthConnectAutoSync) {
+        await HealthConnectService.instance
+            .writeWorkoutSession(completedWorkout);
+      }
+
       // Verify the save by retrieving the workout
     } catch (e) {
       if (kDebugMode) {
         print("Error saving workout: $e");
       }
     }
-    await historyProvider.addCompletedWorkout(completedWorkout);
     await historyProvider.loadTemplates();
+    await historyProvider.addCompletedWorkout(completedWorkout);
     notifyListeners();
     cancelWorkout();
   }

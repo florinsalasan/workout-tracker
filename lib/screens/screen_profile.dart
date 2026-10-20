@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_preferences_provider.dart';
+import '../services/db_helpers.dart';
+import '../services/health_connect_service.dart';
 import '../widgets/sliver_layout.dart';
 import '../widgets/strong_import_dialog.dart';
 
@@ -80,6 +82,12 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildSettingsGroup(
                     context,
+                    'Health Connect',
+                    _buildHealthConnectItems(context, userPreferences),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSettingsGroup(
+                    context,
                     'Data & Migration',
                     [
                       ListTile(
@@ -96,6 +104,194 @@ class ProfileScreen extends StatelessWidget {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildHealthConnectItems(
+    BuildContext context,
+    UserPreferences userPreferences,
+  ) {
+    final isConnected = userPreferences.healthConnectEnabled;
+
+    return [
+      ListTile(
+        leading: Icon(
+          isConnected ? Icons.favorite : Icons.favorite_border,
+          color: isConnected ? Colors.green : null,
+        ),
+        title: const Text('Google Health Connect'),
+        subtitle: Text(
+          isConnected
+              ? 'Connected • On-device sync active'
+              : 'Sync workouts & body weight locally (no sign-in required)',
+        ),
+        trailing: isConnected
+            ? OutlinedButton(
+                onPressed: () =>
+                    _handleDisconnectHealthConnect(context, userPreferences),
+                child: const Text('Disconnect'),
+              )
+            : FilledButton.tonal(
+                onPressed: () =>
+                    _handleConnectHealthConnect(context, userPreferences),
+                child: const Text('Connect'),
+              ),
+      ),
+      const Divider(height: 1),
+      SwitchListTile(
+        secondary: const Icon(Icons.bolt_outlined),
+        title: const Text('Auto-Sync Workouts & Weight'),
+        subtitle: const Text(
+          'Automatically write finished workouts and weight updates to Health Connect',
+        ),
+        value: isConnected && userPreferences.healthConnectAutoSync,
+        onChanged: isConnected
+            ? (bool value) {
+                userPreferences.setHealthConnectAutoSync(value);
+              }
+            : null,
+      ),
+      if (isConnected) ...[
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.monitor_weight_outlined),
+          title: const Text('Import Weight from Health Connect'),
+          subtitle: const Text(
+            'Read latest body weight from smart scales or fitness apps',
+          ),
+          trailing: const Icon(Icons.download_outlined),
+          onTap: () => _handleImportWeight(context, userPreferences),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.sync),
+          title: const Text('Sync Past Workouts'),
+          subtitle: const Text(
+            'Export existing workout history to Health Connect',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _handleSyncPastWorkouts(context),
+        ),
+      ],
+    ];
+  }
+
+  Future<void> _handleConnectHealthConnect(
+    BuildContext context,
+    UserPreferences userPreferences,
+  ) async {
+    final service = HealthConnectService.instance;
+    final availability = await service.checkAvailability();
+
+    if (!context.mounted) return;
+
+    if (availability == HealthConnectAvailability.notSupported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Health Connect is only available on Android devices.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (availability == HealthConnectAvailability.needsInstallOrUpdate) {
+      await service.promptInstallHealthConnect();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please install or update Google Health Connect and try again.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final granted = await service.requestPermissions();
+    if (!context.mounted) return;
+
+    if (granted) {
+      await userPreferences.setHealthConnectEnabled(true);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connected to Google Health Connect.'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Health Connect permissions were not granted.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleDisconnectHealthConnect(
+    BuildContext context,
+    UserPreferences userPreferences,
+  ) async {
+    await HealthConnectService.instance.revokePermissions();
+    await userPreferences.setHealthConnectEnabled(false);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Disconnected from Google Health Connect.'),
+      ),
+    );
+  }
+
+  Future<void> _handleImportWeight(
+    BuildContext context,
+    UserPreferences userPreferences,
+  ) async {
+    final imported = await userPreferences.importWeightFromHealthConnect();
+    if (!context.mounted) return;
+
+    if (imported) {
+      final formatted =
+          '${userPreferences.displayWeight.toStringAsFixed(1)} ${userPreferences.weightUnit}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Imported latest weight: $formatted'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No recent weight records found in Health Connect.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleSyncPastWorkouts(BuildContext context) async {
+    final workouts = await DatabaseHelper.instance.getAllCompletedWorkouts();
+    if (!context.mounted) return;
+
+    if (workouts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No completed workouts to sync.'),
+        ),
+      );
+      return;
+    }
+
+    final syncedCount =
+        await HealthConnectService.instance.syncPastWorkouts(workouts);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Synced $syncedCount of ${workouts.length} workout(s) to Health Connect.',
         ),
       ),
     );
