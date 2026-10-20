@@ -133,6 +133,25 @@ Future<DatabaseHelper> setupTestDb() async {
             FOREIGN KEY (tag_id) REFERENCES exercise_tags (id) ON DELETE CASCADE
           )
         ''');
+
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_completed_workouts_date ON completed_workouts (date DESC)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_completed_exercises_workout_id ON completed_exercises (workout_id)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_completed_exercises_name ON completed_exercises (name)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_completed_sets_exercise_id ON completed_sets (exercise_id)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_template_exercises_template_id ON template_exercises (template_id)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_template_sets_exercise_id ON template_sets (template_exercise_id)',
+        );
       },
       onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON;');

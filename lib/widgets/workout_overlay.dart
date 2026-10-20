@@ -212,19 +212,19 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
     return TextButton(
       onPressed: () => showDialog(
         context: context,
-        builder: (BuildContext context) => AlertDialog(
+        builder: (BuildContext dialogContext) => AlertDialog(
           title: const Text('Cancel Workout'),
           content: const Text("Are you sure you want to cancel the workout? This workout will not be saved."),
           actions: [
             TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                 },
                 child: const Text("Cancel")),
             FilledButton(
                 onPressed: () {
                   context.read<WorkoutState>().cancelWorkout();
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                 },
                 child: const Text("Discard"))
           ],
@@ -241,26 +241,29 @@ class _WorkoutOverlayState extends State<WorkoutOverlay> {
   Widget _buildEndWorkoutButton(BuildContext context, WorkoutState workoutState) {
     final historyProvider = context.read<HistoryProvider>();
     return TextButton(
-      onPressed: () => showDialog(
-        context: context,
-        builder: (BuildContext context) => AlertDialog(
-          title: const Text("End Workout"),
-          content: const Text("Are you sure you want to end the workout?"),
-          actions: [
-            TextButton(
-                onPressed: () => {
-                      Navigator.pop(context),
-                    },
-                child: const Text("Cancel")),
-            FilledButton(
-                onPressed: () => {
-                      Navigator.pop(context),
-                      workoutState.endWorkout(context, historyProvider),
-                    },
-                child: const Text("End Workout")),
-          ],
-        ),
-      ),
+      onPressed: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+        showDialog(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text("End Workout"),
+            content: const Text("Are you sure you want to end the workout?"),
+            actions: [
+              TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text("Cancel")),
+              FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    workoutState.endWorkout(context, historyProvider);
+                  },
+                  child: const Text("End Workout")),
+            ],
+          ),
+        );
+      },
       child: Text(
           style: TextStyle(
             color: Theme.of(context).colorScheme.primary,

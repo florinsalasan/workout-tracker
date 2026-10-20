@@ -144,6 +144,8 @@ Future<void> _createSchema(Database db, int version) async {
       FOREIGN KEY (tag_id) REFERENCES exercise_tags (id) ON DELETE CASCADE
     )
   ''');
+
+  await DatabaseHelper.createIndexes(db);
 }
 
 // ---------------------------------------------------------------------------
@@ -1045,6 +1047,84 @@ void main() {
 
         final fetched = await helper.getCompletedWorkout(workoutId);
         expect(fetched!.exercises.first.sets.first.rpe, 9);
+      });
+    });
+
+    // ── Batch Loading & Index Verification for History Performance ────────
+    group('getAllCompletedWorkouts batch loading & indexes', () {
+      test('creates performance indexes on completed workout tables', () async {
+        final indexes = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'index'",
+        );
+        final indexNames = indexes.map((row) => row['name'] as String).toSet();
+
+        expect(indexNames, contains('idx_completed_workouts_date'));
+        expect(indexNames, contains('idx_completed_exercises_workout_id'));
+        expect(indexNames, contains('idx_completed_exercises_name'));
+        expect(indexNames, contains('idx_completed_sets_exercise_id'));
+      });
+
+      test('getAllCompletedWorkouts loads large workout history accurately with preserved exercise and set order', () async {
+        // Insert 50 workouts with 3 exercises and 3 sets each (450 sets total)
+        for (int w = 0; w < 50; w++) {
+          final workout = CompletedWorkout(
+            date: DateTime(2026, 1, 1).add(Duration(days: w)),
+            durationInSeconds: 1800 + w,
+            name: 'Workout #$w',
+            exercises: [
+              CompletedExercise(
+                workoutId: null,
+                name: 'Bench Press',
+                sets: [
+                  CompletedSet(exerciseId: null, reps: 10, weight: 60000.0 + w, rpe: 7),
+                  CompletedSet(exerciseId: null, reps: 8, weight: 70000.0 + w, rpe: 8),
+                  CompletedSet(exerciseId: null, reps: 6, weight: 80000.0 + w, rpe: 9),
+                ],
+              ),
+              CompletedExercise(
+                workoutId: null,
+                name: 'Incline Dumbbell Press',
+                sets: [
+                  CompletedSet(exerciseId: null, reps: 12, weight: 25000.0),
+                  CompletedSet(exerciseId: null, reps: 10, weight: 27500.0),
+                  CompletedSet(exerciseId: null, reps: 8, weight: 30000.0),
+                ],
+              ),
+              CompletedExercise(
+                workoutId: null,
+                name: 'Tricep Pushdown',
+                sets: [
+                  CompletedSet(exerciseId: null, reps: 15, weight: 20000.0),
+                  CompletedSet(exerciseId: null, reps: 12, weight: 22500.0),
+                  CompletedSet(exerciseId: null, reps: 10, weight: 25000.0),
+                ],
+              ),
+            ],
+          );
+          await helper.insertCompletedWorkout(workout);
+        }
+
+        final stopwatch = Stopwatch()..start();
+        final all = await helper.getAllCompletedWorkouts();
+        stopwatch.stop();
+
+        expect(all.length, 50);
+        // Ordered newest first
+        expect(all.first.name, 'Workout #49');
+        expect(all.last.name, 'Workout #0');
+
+        // Verify exercises and sets order for newest workout
+        final newest = all.first;
+        expect(newest.exercises.map((e) => e.name).toList(), [
+          'Bench Press',
+          'Incline Dumbbell Press',
+          'Tricep Pushdown',
+        ]);
+        expect(newest.exercises[0].sets.map((s) => s.reps).toList(), [10, 8, 6]);
+        expect(newest.exercises[0].sets.map((s) => s.rpe).toList(), [7, 8, 9]);
+        expect(newest.exercises[0].sets[0].weight, 60049.0);
+        // Should complete in well under 500ms
+        expect(stopwatch.elapsedMilliseconds, lessThan(500));
       });
     });
   });

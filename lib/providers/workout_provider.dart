@@ -79,34 +79,53 @@ class WorkoutState extends ChangeNotifier {
         .toList());
 
     bool shouldRemoveIncompleteSets = false;
-    if (incompleteOrZeroRepSets.isNotEmpty) {
+    if (incompleteOrZeroRepSets.isNotEmpty && context.mounted) {
       shouldRemoveIncompleteSets = await _showIncompleteSetDialog(context);
     }
 
     final now = DateTime.now();
     final durationInSeconds = now.difference(_workoutStartTime!).inSeconds;
 
-    final completedWorkout = CompletedWorkout(
+    final hasAnyCompletedSet = _exercises.any(
+      (ex) => ex.sets.any((set) => set.isCompleted && set.reps > 0),
+    );
+
+    final mappedExercises = _exercises
+        .map((exercise) => CompletedExercise(
+              workoutId: null,
+              name: exercise.name,
+              sets: exercise.sets
+                  .where((set) {
+                    if (!shouldRemoveIncompleteSets) return true;
+                    // If the user marked at least one set as completed, filter
+                    // to completed sets with >0 reps. If no sets were explicitly
+                    // checked off, keep sets with >0 reps so we never wipe out
+                    // all sets in the workout.
+                    return hasAnyCompletedSet
+                        ? (set.isCompleted && set.reps > 0)
+                        : (set.reps > 0);
+                  })
+                  .map(
+                    (set) => CompletedSet(
+                      exerciseId: null,
+                      reps: set.reps,
+                      weight: set.weight,
+                      rpe: set.rpe,
+                    ),
+                  )
+                  .toList(),
+            ))
+        .toList();
+
+    final nonEmptyExercises =
+        mappedExercises.where((e) => e.sets.isNotEmpty).toList();
+    final finalExercises = shouldRemoveIncompleteSets && nonEmptyExercises.isNotEmpty
+        ? nonEmptyExercises
+        : mappedExercises;
+
+    var completedWorkout = CompletedWorkout(
         date: now,
-        exercises: _exercises
-            .map((exercise) => CompletedExercise(
-                  workoutId: null,
-                  name: exercise.name,
-                  sets: exercise.sets
-                      .where((set) =>
-                          !shouldRemoveIncompleteSets ||
-                          (set.isCompleted && set.reps > 0))
-                      .map(
-                        (set) => CompletedSet(
-                          exerciseId: null,
-                          reps: set.reps,
-                          weight: set.weight,
-                          rpe: set.rpe,
-                        ),
-                      )
-                      .toList(),
-                ))
-            .toList(),
+        exercises: finalExercises,
         durationInSeconds: durationInSeconds);
 
     try {
@@ -125,6 +144,14 @@ class WorkoutState extends ChangeNotifier {
         workoutId = await dbHelper.insertCompletedWorkout(completedWorkout);
       }
 
+      completedWorkout = CompletedWorkout(
+        id: workoutId,
+        date: completedWorkout.date,
+        exercises: completedWorkout.exercises,
+        durationInSeconds: completedWorkout.durationInSeconds,
+        name: completedWorkout.name,
+      );
+
       await dbHelper.checkAndUpdatePersonalBests(workoutId);
 
       // Verify the save by retrieving the workout
@@ -133,7 +160,7 @@ class WorkoutState extends ChangeNotifier {
         print("Error saving workout: $e");
       }
     }
-    historyProvider.addCompletedWorkout(completedWorkout);
+    await historyProvider.addCompletedWorkout(completedWorkout);
     await historyProvider.loadTemplates();
     notifyListeners();
     cancelWorkout();

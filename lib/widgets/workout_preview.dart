@@ -58,6 +58,7 @@ class WorkoutPreview extends StatelessWidget {
     List<Widget> exerciseWidgets = [];
 
     for (int i = 0; i < workout.exercises.length && i < 3; i++) {
+      final exercise = workout.exercises[i];
       exerciseWidgets.add(Padding(
         padding: const EdgeInsets.only(left: 8, bottom: 4),
         child: Row(
@@ -66,8 +67,23 @@ class WorkoutPreview extends StatelessWidget {
             const Icon(Icons.check_circle,
                 size: 16, color: Colors.green),
             const SizedBox(width: 8),
-            Text(workout.exercises[i].name,
-                style: const TextStyle(fontSize: 14)),
+            Expanded(
+              child: Text(
+                exercise.name,
+                style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (exercise.sets.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Text(
+                '${exercise.sets.length} ${exercise.sets.length == 1 ? 'set' : 'sets'}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ));

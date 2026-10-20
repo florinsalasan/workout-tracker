@@ -42,6 +42,21 @@ class _WorkoutCalendarViewState extends State<WorkoutCalendarView> {
     _displayedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
   }
 
+  @override
+  void didUpdateWidget(covariant WorkoutCalendarView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.workouts.length > oldWidget.workouts.length &&
+        widget.workouts.isNotEmpty) {
+      final oldIds = oldWidget.workouts.map((w) => w.id).toSet();
+      final addedWorkout = widget.workouts.firstWhere(
+        (w) => !oldIds.contains(w.id),
+        orElse: () => widget.workouts.first,
+      );
+      _selectedDate = _normalizeDate(addedWorkout.date);
+      _displayedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    }
+  }
+
   DateTime _normalizeDate(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
   Map<DateTime, List<CompletedWorkout>> _buildWorkoutMap() {
@@ -115,15 +130,15 @@ class _WorkoutCalendarViewState extends State<WorkoutCalendarView> {
               }
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Column(
                 children: [
                   // Month Navigation Header
                   _buildMonthHeader(theme, isViewingCurrentMonth, monthWorkoutsCount),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   // Weekday Letters
                   _buildWeekdayHeader(theme),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   // Days Grid
                   _buildDaysGrid(theme, workoutMap, todayNormalized),
                 ],
@@ -134,7 +149,7 @@ class _WorkoutCalendarViewState extends State<WorkoutCalendarView> {
 
         // ── Selected Date Section Header ──
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
           child: Row(
             children: [
               Icon(
@@ -152,18 +167,28 @@ class _WorkoutCalendarViewState extends State<WorkoutCalendarView> {
                 ),
               ),
               if (selectedDayWorkouts.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${selectedDayWorkouts.length} ${selectedDayWorkouts.length == 1 ? 'workout' : 'workouts'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSecondaryContainer,
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    if (selectedDayWorkouts.length == 1) {
+                      widget.onWorkoutTap(selectedDayWorkouts.first);
+                    } else if (widget.onJumpToList != null) {
+                      widget.onJumpToList!(_selectedDate);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${selectedDayWorkouts.length} ${selectedDayWorkouts.length == 1 ? 'workout' : 'workouts'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
                     ),
                   ),
                 ),
@@ -392,7 +417,7 @@ class _WorkoutCalendarViewState extends State<WorkoutCalendarView> {
       },
       child: Container(
         width: 38,
-        height: 42,
+        height: 36,
         decoration: decoration,
         alignment: Alignment.center,
         child: Column(

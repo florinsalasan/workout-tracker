@@ -179,5 +179,43 @@ void main() {
       expect(jumpedDate!.month, 10);
       expect(jumpedDate!.day, 15);
     });
+
+    testWidgets('tapping the workout count pill badge on a single-workout day triggers onWorkoutTap', (tester) async {
+      CompletedWorkout? tapped;
+      await tester.pumpWidget(buildCalendar(
+        initialDate: DateTime(2026, 10, 15),
+        onWorkoutTap: (w) => tapped = w,
+      ));
+      await tester.pump();
+
+      expect(find.text('1 workout'), findsOneWidget);
+      await tester.tap(find.text('1 workout'));
+      await tester.pump();
+
+      expect(tapped, isNotNull);
+      expect(tapped!.id, 1);
+    });
+
+    testWidgets('automatically selects new workout date when workouts list grows via didUpdateWidget', (tester) async {
+      await tester.pumpWidget(buildCalendar(
+        workouts: [workoutOct15],
+        initialDate: DateTime(2026, 10, 15),
+      ));
+      await tester.pump();
+
+      expect(find.text('Bench Press'), findsOneWidget);
+      expect(find.text('Squat'), findsNothing);
+
+      // Update widget with a newly added workout on Oct 20
+      await tester.pumpWidget(buildCalendar(
+        workouts: [workoutOct20, workoutOct15],
+        initialDate: DateTime(2026, 10, 15),
+      ));
+      await tester.pump();
+
+      // Should automatically switch selection to Oct 20 and display Squat with set count
+      expect(find.text('Squat'), findsOneWidget);
+      expect(find.text('1 set'), findsOneWidget);
+    });
   });
 }

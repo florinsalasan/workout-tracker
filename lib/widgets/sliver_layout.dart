@@ -15,17 +15,17 @@ class CustomLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverAppBar.large(
-            title: Text(title),
-            actions: actions,
-          ),
-          SliverFillRemaining(
-            hasScrollBody: true,
-            child: body,
-          ),
-        ],
+      body: NestedScrollView(
+        headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+          return <Widget>[
+            SliverAppBar.large(
+              title: Text(title),
+              actions: actions,
+              forceElevated: innerBoxIsScrolled,
+            ),
+          ];
+        },
+        body: body,
       ),
     );
   }
