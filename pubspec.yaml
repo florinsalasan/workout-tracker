@@ -37,7 +37,7 @@ dependencies:
   sqflite: ^2.3.3+1
   provider: ^6.1.2
   path: ^1.9.0
-  intl: ^0.19.0
+  intl: ^0.20.0
   shared_preferences: ^2.2.3
   flutter_platform_widgets: ^7.0.0
   fl_chart: ^1.2.0
@@ -46,6 +46,7 @@ dependencies:
   http: ^1.6.0
   csv: ^8.0.0
   file_picker: ^13.1.0
+  health: ^13.0.0
 
 dev_dependencies:
   flutter_test:

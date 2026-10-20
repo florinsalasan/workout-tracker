@@ -255,13 +255,15 @@ void main() {
 
       expect(find.text('Incomplete Sets'), findsOneWidget);
 
-      // Tap 'Remove incomplete sets' inside tester.runAsync so sqflite FFI futures resolve
       await tester.tap(find.text('Remove incomplete sets'));
       await tester.pump();
       await tester.runAsync(() async {
-        await Future.delayed(const Duration(milliseconds: 100));
+        for (int i = 0; i < 50 && workoutState.isWorkoutActive; i++) {
+          await Future.delayed(const Duration(milliseconds: 20));
+        }
       });
       await pumpAndFlush(tester);
+      await tester.pump(const Duration(seconds: 11));
 
       // Verify the 2 sets with >0 reps were preserved and the 0-rep set was removed
       final allWorkouts = await tester.runAsync(() => dbHelper.getAllCompletedWorkouts());

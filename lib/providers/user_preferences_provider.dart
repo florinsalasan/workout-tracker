@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/db_helpers.dart'; 
+import '../services/db_helpers.dart';
+import '../services/health_connect_service.dart';
 
 class UserPreferences extends ChangeNotifier {
   static const String _weightUnitKey = 'weightUnit';
@@ -9,6 +10,8 @@ class UserPreferences extends ChangeNotifier {
   static const String _weightGKey = 'weight_g'; // Using grams to match DB
   static const String _intensityModeKey = 'intensity_mode'; // 'none', 'rpe', 'rir'
   static const String _historyViewModeKey = 'history_view_mode'; // 'list', 'calendar'
+  static const String _healthConnectEnabledKey = 'health_connect_enabled';
+  static const String _healthConnectAutoSyncKey = 'health_connect_auto_sync';
   
   static final UserPreferences _instance = UserPreferences._internal();
 
@@ -20,11 +23,13 @@ class UserPreferences extends ChangeNotifier {
     _loadPreferences();
   }
 
-  late SharedPreferences _prefs;
+  SharedPreferences? _prefs;
   String _weightUnit = 'lbs';
   String _heightUnit = 'cm';
   String _intensityMode = 'none'; // 'none', 'rpe', 'rir'
   String _historyViewMode = 'list'; // 'list', 'calendar'
+  bool _healthConnectEnabled = false;
+  bool _healthConnectAutoSync = true;
   
   // Base Units (Stored as integers for weight to match DB!)
   double _baseHeightCm = 0.0;
@@ -34,6 +39,8 @@ class UserPreferences extends ChangeNotifier {
   String get heightUnit => _heightUnit;
   String get intensityMode => _intensityMode;
   String get historyViewMode => _historyViewMode;
+  bool get healthConnectEnabled => _healthConnectEnabled;
+  bool get healthConnectAutoSync => _healthConnectAutoSync;
   
   // Raw getters if needed for analytics elsewhere
   double get rawHeightCm => _baseHeightCm;
@@ -66,14 +73,20 @@ class UserPreferences extends ChangeNotifier {
     return (10 - rir).clamp(6, 10);
   }
 
+  Future<SharedPreferences> _getPrefs() async {
+    return _prefs ??= await SharedPreferences.getInstance();
+  }
+
   Future<void> _loadPreferences() async {
-    _prefs = await SharedPreferences.getInstance();
-    _weightUnit = _prefs.getString(_weightUnitKey) ?? 'lbs';
-    _heightUnit = _prefs.getString(_heightUnitKey) ?? 'cm';
-    _intensityMode = _prefs.getString(_intensityModeKey) ?? 'none';
-    _historyViewMode = _prefs.getString(_historyViewModeKey) ?? 'list';
-    _baseHeightCm = _prefs.getDouble(_heightCmKey) ?? 0.0;
-    _baseWeightGrams = _prefs.getInt(_weightGKey) ?? 0; 
+    final prefs = await _getPrefs();
+    _weightUnit = prefs.getString(_weightUnitKey) ?? 'lbs';
+    _heightUnit = prefs.getString(_heightUnitKey) ?? 'cm';
+    _intensityMode = prefs.getString(_intensityModeKey) ?? 'none';
+    _historyViewMode = prefs.getString(_historyViewModeKey) ?? 'list';
+    _healthConnectEnabled = prefs.getBool(_healthConnectEnabledKey) ?? false;
+    _healthConnectAutoSync = prefs.getBool(_healthConnectAutoSyncKey) ?? true;
+    _baseHeightCm = prefs.getDouble(_heightCmKey) ?? 0.0;
+    _baseWeightGrams = prefs.getInt(_weightGKey) ?? 0; 
     notifyListeners();
   }
 
@@ -81,7 +94,8 @@ class UserPreferences extends ChangeNotifier {
   Future<void> setWeightUnit(String unit) async {
     if (_weightUnit != unit) {
       _weightUnit = unit;
-      await _prefs.setString(_weightUnitKey, unit);
+      final prefs = await _getPrefs();
+      await prefs.setString(_weightUnitKey, unit);
       notifyListeners();
     }
   }
@@ -89,7 +103,8 @@ class UserPreferences extends ChangeNotifier {
   Future<void> setHeightUnit(String unit) async {
     if (_heightUnit != unit) {
       _heightUnit = unit;
-      await _prefs.setString(_heightUnitKey, unit);
+      final prefs = await _getPrefs();
+      await prefs.setString(_heightUnitKey, unit);
       notifyListeners();
     }
   }
@@ -97,7 +112,8 @@ class UserPreferences extends ChangeNotifier {
   Future<void> setIntensityMode(String mode) async {
     if (_intensityMode != mode) {
       _intensityMode = mode;
-      await _prefs.setString(_intensityModeKey, mode);
+      final prefs = await _getPrefs();
+      await prefs.setString(_intensityModeKey, mode);
       notifyListeners();
     }
   }
@@ -105,7 +121,26 @@ class UserPreferences extends ChangeNotifier {
   Future<void> setHistoryViewMode(String mode) async {
     if (_historyViewMode != mode) {
       _historyViewMode = mode;
-      await _prefs.setString(_historyViewModeKey, mode);
+      final prefs = await _getPrefs();
+      await prefs.setString(_historyViewModeKey, mode);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setHealthConnectEnabled(bool enabled) async {
+    if (_healthConnectEnabled != enabled) {
+      _healthConnectEnabled = enabled;
+      final prefs = await _getPrefs();
+      await prefs.setBool(_healthConnectEnabledKey, enabled);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setHealthConnectAutoSync(bool autoSync) async {
+    if (_healthConnectAutoSync != autoSync) {
+      _healthConnectAutoSync = autoSync;
+      final prefs = await _getPrefs();
+      await prefs.setBool(_healthConnectAutoSyncKey, autoSync);
       notifyListeners();
     }
   }
@@ -124,13 +159,39 @@ class UserPreferences extends ChangeNotifier {
       _baseWeightGrams = weightInGrams;
       
       // Update local storage
-      await _prefs.setInt(_weightGKey, weightInGrams);
+      final prefs = await _getPrefs();
+      await prefs.setInt(_weightGKey, weightInGrams);
       
       // Log to SQLite database
       await DatabaseHelper.instance.logBodyWeight(weightInGrams);
+
+      // Sync to Health Connect if enabled
+      if (_healthConnectEnabled && _healthConnectAutoSync) {
+        await HealthConnectService.instance.writeBodyWeight(
+          weightInGrams / 1000.0,
+        );
+      }
       
       notifyListeners();
     }
+  }
+
+  /// Imports the latest body weight reading from Health Connect and saves it locally.
+  /// Returns true if a weight reading was found and applied.
+  Future<bool> importWeightFromHealthConnect() async {
+    final reading = await HealthConnectService.instance.readLatestBodyWeight();
+    if (reading == null || reading.weightKg <= 0) {
+      return false;
+    }
+
+    final weightInGrams = (reading.weightKg * 1000).round();
+    _baseWeightGrams = weightInGrams;
+
+    final prefs = await _getPrefs();
+    await prefs.setInt(_weightGKey, weightInGrams);
+    await DatabaseHelper.instance.logBodyWeight(weightInGrams);
+    notifyListeners();
+    return true;
   }
 
   Future<void> saveHeightFromUI(double enteredHeight) async {
@@ -141,7 +202,8 @@ class UserPreferences extends ChangeNotifier {
 
     if (_baseHeightCm != heightInCm) {
       _baseHeightCm = heightInCm;
-      await _prefs.setDouble(_heightCmKey, heightInCm);
+      final prefs = await _getPrefs();
+      await prefs.setDouble(_heightCmKey, heightInCm);
       notifyListeners();
     }
   }
